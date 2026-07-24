@@ -11,7 +11,7 @@
 <header class="topbar">
   <div>
     <h1>SR Bharat Gas, Kammapuram</h1>
-    <div class="sub">Godown Incharge</div>
+    <div class="sub">Staff — Godown Incharge</div>
   </div>
   <div class="who">
     <span id="whoName"></span>
@@ -39,15 +39,8 @@
   </div>
 
   <div class="card tab-panel" id="panel-stock">
-    <h2>Cylinder Stock (Total Upload / SV-ADD / Return / Delivered)</h2>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr><th>Product</th><th>Total Upload</th><th>SV/ADD Load</th><th>SV/ADD Empty</th><th>Return Load</th><th>Return Empty</th><th>Delivered</th></tr>
-        </thead>
-        <tbody id="stockBody"></tbody>
-      </table>
-    </div>
+    <h2>Cylinder Stock</h2>
+    <div class="grid" id="stockGrid"></div>
     <div class="row-actions"><button class="btn" id="stockSaveBtn">Save Stock</button></div>
   </div>
 
@@ -62,16 +55,16 @@
         <div>
           <label>Product</label>
           <select id="svProduct" required>
-            <option value="14.2 Kg">14.2 Kg</option>
-            <option value="19 Kg">19 Kg</option>
+            <option value="14.2 Kg Domestic">14.2 Kg Domestic</option>
+            <option value="19 Kg Commercial">19 Kg Commercial</option>
             <option value="5 Kg BMCG">5 Kg BMCG</option>
-            <option value="Stove">Stove</option>
+            <option value="DPR (Regulator)">DPR (Regulator)</option>
             <option value="Hose">Hose</option>
             <option value="Lighter">Lighter</option>
-            <option value="DPR">DPR</option>
+            <option value="Stove">Stove</option>
+            <option value="Book">Book</option>
             <option value="NC">NC</option>
             <option value="Additional Cylinder">Additional Cylinder</option>
-            <option value="Book">Book</option>
           </select>
         </div>
         <div>

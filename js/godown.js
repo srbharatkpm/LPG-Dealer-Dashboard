@@ -1,13 +1,14 @@
-const STOCK_PRODUCTS = [
-  "14.2 Kg Cylinder",
-  "19 Kg Cylinder",
-  "5 Kg Cylinder",
-  "BMCG Cylinder",
-  "DPR",
-  "Hose",
-  "Lighter",
-  "Book",
-  "Stove",
+const CONDITION_LABELS = { full: "Full", empty: "Empty", sound: "Sound", defective: "Defective", qty: "Qty" };
+
+const STOCK_CONFIG = [
+  { product: "14.2 Kg Domestic", conditions: ["full", "empty"] },
+  { product: "19 Kg Commercial", conditions: ["full", "empty"] },
+  { product: "5 Kg BMCG", conditions: ["full", "empty"] },
+  { product: "DPR (Regulator)", conditions: ["sound", "defective"] },
+  { product: "Hose", conditions: ["qty"] },
+  { product: "Lighter", conditions: ["qty"] },
+  { product: "Book", conditions: ["qty"] },
+  { product: "Stove", conditions: ["qty"] },
 ];
 
 let profile = null;
@@ -49,47 +50,66 @@ function currentDate() {
 
 // ---------- Stock ----------
 function renderStockRows() {
-  const body = document.getElementById("stockBody");
-  body.innerHTML = "";
-  STOCK_PRODUCTS.forEach((p) => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${p}</td>
-      <td><input type="number" step="1" data-product="${p}" data-field="total_upload" value="0" /></td>
-      <td><input type="number" step="1" data-product="${p}" data-field="sv_load" value="0" /></td>
-      <td><input type="number" step="1" data-product="${p}" data-field="sv_empty" value="0" /></td>
-      <td><input type="number" step="1" data-product="${p}" data-field="return_load" value="0" /></td>
-      <td><input type="number" step="1" data-product="${p}" data-field="return_empty" value="0" /></td>
-      <td><input type="number" step="1" data-product="${p}" data-field="delivered_load" value="0" /></td>
+  const grid = document.getElementById("stockGrid");
+  grid.innerHTML = "";
+  STOCK_CONFIG.forEach(({ product, conditions }) => {
+    const card = document.createElement("div");
+    card.style.cssText = "border:1px solid var(--border);border-radius:8px;padding:10px;background:#fafcfe;";
+    const fields = conditions
+      .map(
+        (c) => `
+      <div style="flex:1;">
+        <label style="font-size:11px;">${CONDITION_LABELS[c]}</label>
+        <input type="number" step="1" data-product="${product}" data-condition="${c}" value="0" />
+      </div>`
+      )
+      .join("");
+    card.innerHTML = `
+      <div style="font-weight:600;font-size:13px;margin-bottom:6px;">${product}</div>
+      <div style="display:flex;gap:8px;">${fields}</div>
     `;
-    body.appendChild(tr);
+    grid.appendChild(card);
   });
 }
 
 async function loadStock() {
   const rows = await lpgCloud.select("godown_stock", { eq: { entry_date: currentDate() } });
-  const byProduct = {};
-  rows.forEach((r) => (byProduct[r.product] = r));
-  STOCK_PRODUCTS.forEach((p) => {
-    const r = byProduct[p];
-    ["total_upload", "sv_load", "sv_empty", "return_load", "return_empty", "delivered_load"].forEach((f) => {
-      const input = document.querySelector(`#stockBody input[data-product="${p}"][data-field="${f}"]`);
-      input.value = r ? r[f] : 0;
+  const byKey = {};
+  rows.forEach((r) => (byKey[r.product + "|" + r.condition] = r));
+  STOCK_CONFIG.forEach(({ product, conditions }) => {
+    conditions.forEach((c) => {
+      const r = byKey[product + "|" + c];
+      const input = document.querySelector(
+        `#stockGrid input[data-product="${cssEscape(product)}"][data-condition="${c}"]`
+      );
+      input.value = r ? r.quantity : 0;
     });
   });
+}
+
+function cssEscape(s) {
+  return String(s).replace(/"/g, '\\"');
 }
 
 document.getElementById("stockSaveBtn").addEventListener("click", async () => {
   hideMsg();
   try {
-    const rows = STOCK_PRODUCTS.map((p) => {
-      const row = { entry_date: currentDate(), product: p, created_by: profile.id };
-      ["total_upload", "sv_load", "sv_empty", "return_load", "return_empty", "delivered_load"].forEach((f) => {
-        row[f] = num(document.querySelector(`#stockBody input[data-product="${p}"][data-field="${f}"]`).value);
+    const rows = [];
+    STOCK_CONFIG.forEach(({ product, conditions }) => {
+      conditions.forEach((c) => {
+        const input = document.querySelector(
+          `#stockGrid input[data-product="${cssEscape(product)}"][data-condition="${c}"]`
+        );
+        rows.push({
+          entry_date: currentDate(),
+          product,
+          condition: c,
+          quantity: num(input.value),
+          created_by: profile.id,
+        });
       });
-      return row;
     });
-    await lpgCloud.upsert("godown_stock", rows, "entry_date,product");
+    await lpgCloud.upsert("godown_stock", rows, "entry_date,product,condition");
     showMsg("Stock saved.", "ok");
   } catch (err) {
     showMsg(err.message || "Could not save stock.", "error");
@@ -236,9 +256,9 @@ document.getElementById("entryDate").addEventListener("change", () => {
 
 (async () => {
   try {
-    profile = await lpgCloud.requireRole("godown");
+    profile = await lpgCloud.requireRole("staff");
     if (!profile) return;
-    document.getElementById("whoName").textContent = profile.full_name + " (Godown Incharge)";
+    document.getElementById("whoName").textContent = profile.full_name + " (Staff — Godown Incharge)";
     document.getElementById("entryDate").value = new Date().toISOString().slice(0, 10);
     renderStockRows();
     await loadAllForDate();

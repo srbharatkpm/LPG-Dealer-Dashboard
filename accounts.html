@@ -11,7 +11,7 @@
 <header class="topbar">
   <div>
     <h1>SR Bharat Gas, Kammapuram</h1>
-    <div class="sub">Accounts Office</div>
+    <div class="sub">Office Ledger</div>
   </div>
   <div class="who">
     <span id="whoName"></span>
@@ -48,6 +48,10 @@
     <button class="active" data-tab="sales">Cylinder Sales</button>
     <button data-tab="trips">Delivery Trips</button>
     <button data-tab="manual">Office Entries</button>
+    <button data-tab="credit">Credit Customers</button>
+    <button data-tab="targets" id="tabTargets">Targets</button>
+    <button data-tab="pl" id="tabPL">Profit &amp; Loss</button>
+    <button data-tab="team" id="tabTeam">Team</button>
   </div>
 
   <div class="card tab-panel" id="panel-sales">
@@ -105,6 +109,93 @@
       <div><label>Notes</label><textarea id="mNotes" rows="2"></textarea></div>
       <div class="row-actions"><button type="submit" class="btn">Save Office Entries</button></div>
     </form>
+  </div>
+
+  <div class="card tab-panel" id="panel-credit" style="display:none;">
+    <h2>Add Credit Customer</h2>
+    <form id="customerForm">
+      <div class="grid">
+        <div><label>Consumer No.</label><input type="text" id="ccConsumerNo" /></div>
+        <div><label>Name</label><input type="text" id="ccName" required /></div>
+        <div><label>Phone</label><input type="tel" id="ccPhone" /></div>
+        <div><label>Address</label><input type="text" id="ccAddress" /></div>
+      </div>
+      <div class="row-actions"><button type="submit" class="btn">Add Customer</button></div>
+    </form>
+
+    <h2 style="margin-top:18px;">Record Sale / Payment</h2>
+    <form id="creditTxnForm">
+      <div class="grid">
+        <div>
+          <label>Customer</label>
+          <select id="txnCustomer" required></select>
+        </div>
+        <div>
+          <label>Type</label>
+          <select id="txnType">
+            <option value="sale">Sale (increases balance owed)</option>
+            <option value="payment">Payment Received (reduces balance)</option>
+          </select>
+        </div>
+        <div><label>Date</label><input type="date" id="txnDate" required /></div>
+        <div><label>Product (for sale)</label><input type="text" id="txnProduct" placeholder="14.2 Kg Domestic" /></div>
+        <div><label>Qty (for sale)</label><input type="number" id="txnQty" step="1" /></div>
+        <div><label>Amount (₹)</label><input type="number" id="txnAmount" step="0.01" required /></div>
+      </div>
+      <div><label>Notes</label><input type="text" id="txnNotes" /></div>
+      <div class="row-actions"><button type="submit" class="btn">Record</button></div>
+    </form>
+
+    <h2 style="margin-top:18px;">Customers &amp; Balances</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Consumer No.</th><th>Name</th><th>Phone</th><th>Balance Owed (₹)</th></tr></thead>
+        <tbody id="customersBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card tab-panel" id="panel-targets" style="display:none;">
+    <h2>Sales Targets</h2>
+    <div class="grid">
+      <div>
+        <label>Daily Target for this Date (₹)</label>
+        <input type="number" id="targetDaily" step="0.01" value="0" />
+      </div>
+      <div>
+        <label>Monthly Target for this Month (₹)</label>
+        <input type="number" id="targetMonthly" step="0.01" value="0" />
+      </div>
+    </div>
+    <div class="row-actions"><button class="btn" id="targetSaveBtn">Save Targets</button></div>
+    <div class="totals" style="margin-top:14px;">
+      <div class="tile credit"><div class="label">Today's Actual Sales</div><div class="value" id="targetDailyActual">₹0</div></div>
+      <div class="tile credit"><div class="label">Month-to-Date Actual Sales</div><div class="value" id="targetMonthlyActual">₹0</div></div>
+    </div>
+  </div>
+
+  <div class="card tab-panel" id="panel-pl" style="display:none;">
+    <h2>Profit &amp; Loss</h2>
+    <div class="totals">
+      <div class="tile credit"><div class="label">Today's Revenue</div><div class="value" id="plRevenue">₹0</div></div>
+      <div class="tile debit"><div class="label">Today's Expenses</div><div class="value" id="plExpenses">₹0</div></div>
+      <div class="tile"><div class="label">Today's P&amp;L</div><div class="value" id="plToday">₹0</div></div>
+    </div>
+    <div class="totals" style="margin-top:14px;">
+      <div class="tile credit"><div class="label">Month-to-Date Revenue</div><div class="value" id="plMonthRevenue">₹0</div></div>
+      <div class="tile debit"><div class="label">Month-to-Date Expenses</div><div class="value" id="plMonthExpenses">₹0</div></div>
+      <div class="tile"><div class="label">Month-to-Date P&amp;L</div><div class="value" id="plMonth">₹0</div></div>
+    </div>
+  </div>
+
+  <div class="card tab-panel" id="panel-team" style="display:none;">
+    <h2>Team &amp; Roles</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Name</th><th>Phone</th><th>Vehicle/Line</th><th>Role</th><th></th></tr></thead>
+        <tbody id="teamBody"></tbody>
+      </table>
+    </div>
   </div>
 </main>
 

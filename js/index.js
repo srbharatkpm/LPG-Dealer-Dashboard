@@ -35,8 +35,8 @@ function hideMsg() {
 }
 
 function routeForRole(role) {
-  if (role === "accounts") return "accounts.html";
-  if (role === "godown") return "godown.html";
+  if (role === "owner" || role === "manager" || role === "accounts") return "accounts.html";
+  if (role === "staff") return "godown.html";
   if (role === "driver") return "delivery.html";
   return null;
 }

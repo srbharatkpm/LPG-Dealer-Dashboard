@@ -70,15 +70,17 @@ const lpgCloud = (() => {
   }
 
   // Redirects to index.html if not signed in, or to index.html if role
-  // doesn't match. Returns the profile on success.
+  // doesn't match. expectedRole may be a single role string or an array
+  // of allowed roles. Returns the profile on success.
   async function requireRole(expectedRole) {
+    const allowed = Array.isArray(expectedRole) ? expectedRole : [expectedRole];
     const session = await getSession();
     if (!session) {
       window.location.href = "index.html";
       return null;
     }
     const profile = await getProfile();
-    if (!profile || profile.role !== expectedRole) {
+    if (!profile || !allowed.includes(profile.role)) {
       window.location.href = "index.html";
       return null;
     }
@@ -90,6 +92,12 @@ const lpgCloud = (() => {
     let q = sb.from(table).select(opts.columns || "*");
     if (opts.eq) {
       for (const [col, val] of Object.entries(opts.eq)) q = q.eq(col, val);
+    }
+    if (opts.gte) {
+      for (const [col, val] of Object.entries(opts.gte)) q = q.gte(col, val);
+    }
+    if (opts.lte) {
+      for (const [col, val] of Object.entries(opts.lte)) q = q.lte(col, val);
     }
     if (opts.order) q = q.order(opts.order.column, { ascending: !!opts.order.ascending });
     const { data, error } = await q;

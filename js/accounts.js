@@ -1,5 +1,6 @@
 let profile = null;
 let ratesCache = {}; // product -> rate
+let customersCache = [];
 
 const msg = document.getElementById("msg");
 function showMsg(text, kind) {
@@ -16,9 +17,15 @@ function num(v) {
 function fmt(n) {
   return "₹" + Number(n || 0).toFixed(2);
 }
+function moneyText(el) {
+  return num(el.textContent.replace(/[₹,]/g, ""));
+}
 function escapeHtml(s) {
   if (s === null || s === undefined) return "";
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function roleLabel(role) {
+  return { owner: "Owner", manager: "Manager", accounts: "Accounts", staff: "Staff", driver: "Driver" }[role] || role;
 }
 
 document.getElementById("signOutBtn").addEventListener("click", async () => {
@@ -39,12 +46,23 @@ function currentDate() {
   return document.getElementById("entryDate").value;
 }
 
+function monthRange(dateStr) {
+  const d = new Date(dateStr + "T00:00:00");
+  const start = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
+  return { start, end: dateStr };
+}
+
 // ---------- Vehicle sales + rates ----------
 async function loadRates() {
   const rows = await lpgCloud.select("product_rates");
   ratesCache = {};
   rows.forEach((r) => (ratesCache[r.product] = Number(r.rate)));
 }
+
+const KNOWN_PRODUCTS = [
+  "14.2 Kg Domestic", "19 Kg Commercial", "5 Kg BMCG", "DPR (Regulator)",
+  "Hose", "Lighter", "Stove", "Book", "NC", "Additional Cylinder",
+];
 
 async function loadSalesAndRates() {
   const sales = await lpgCloud.select("godown_vehicle_sales", { eq: { entry_date: currentDate() } });
@@ -61,11 +79,7 @@ async function loadSalesAndRates() {
   sales.forEach((r) => {
     totalsByProduct[r.product] = (totalsByProduct[r.product] || 0) + Number(r.qty || 0);
   });
-  // include known rate-list products even with zero qty so the office can set rates ahead of time
-  const knownProducts = [
-    "14.2 Kg", "19 Kg", "5 Kg BMCG", "Stove", "Hose", "Lighter", "DPR", "NC", "Additional Cylinder", "Book",
-  ];
-  knownProducts.forEach((p) => {
+  KNOWN_PRODUCTS.forEach((p) => {
     if (!(p in totalsByProduct)) totalsByProduct[p] = 0;
   });
 
@@ -73,7 +87,7 @@ async function loadSalesAndRates() {
   body.innerHTML = "";
   let totalCredit = 0;
   Object.entries(totalsByProduct).forEach(([product, qty]) => {
-    const rate = ratesCache[product] != null ? ratesCache[product] : (product === "14.2 Kg" ? 890 : 0);
+    const rate = ratesCache[product] != null ? ratesCache[product] : (product === "14.2 Kg Domestic" ? 890 : 0);
     const amount = qty * rate;
     totalCredit += amount;
     const tr = document.createElement("tr");
@@ -221,7 +235,7 @@ document.getElementById("manualForm").addEventListener("submit", async (e) => {
 let lastCounted = 0;
 
 function recomputeBalance() {
-  const credit = num(document.getElementById("sumCredit").textContent.replace(/[₹,]/g, ""));
+  const credit = moneyText(document.getElementById("sumCredit"));
   const debit =
     num(godownDebits.diesel_expenses) + num(godownDebits.refill_commission) +
     num(godownDebits.local_expenses) + num(godownDebits.vehicle_expenses) +
@@ -248,6 +262,195 @@ function recomputeBalance() {
   }
 }
 
+// ---------- Credit Customers ----------
+async function loadCustomers() {
+  customersCache = await lpgCloud.select("credit_customers", { order: { column: "name", ascending: true } });
+  const sel = document.getElementById("txnCustomer");
+  sel.innerHTML = customersCache
+    .map((c) => `<option value="${c.id}">${escapeHtml(c.name)} (${escapeHtml(c.consumer_no || "-")})</option>`)
+    .join("");
+
+  const allTxns = await lpgCloud.select("credit_transactions");
+  const balances = {};
+  allTxns.forEach((t) => {
+    const sign = t.type === "sale" ? 1 : -1;
+    balances[t.customer_id] = (balances[t.customer_id] || 0) + sign * Number(t.amount || 0);
+  });
+
+  const body = document.getElementById("customersBody");
+  body.innerHTML = "";
+  customersCache.forEach((c) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeHtml(c.consumer_no)}</td>
+      <td>${escapeHtml(c.name)}</td>
+      <td>${escapeHtml(c.phone)}</td>
+      <td>${fmt(balances[c.id] || 0)}</td>
+    `;
+    body.appendChild(tr);
+  });
+}
+
+document.getElementById("customerForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  hideMsg();
+  try {
+    await lpgCloud.insert("credit_customers", [
+      {
+        consumer_no: document.getElementById("ccConsumerNo").value.trim(),
+        name: document.getElementById("ccName").value.trim(),
+        phone: document.getElementById("ccPhone").value.trim(),
+        address: document.getElementById("ccAddress").value.trim(),
+        created_by: profile.id,
+      },
+    ]);
+    document.getElementById("customerForm").reset();
+    await loadCustomers();
+    showMsg("Customer added.", "ok");
+  } catch (err) {
+    showMsg(err.message || "Could not add customer.", "error");
+  }
+});
+
+document.getElementById("creditTxnForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  hideMsg();
+  try {
+    await lpgCloud.insert("credit_transactions", [
+      {
+        customer_id: document.getElementById("txnCustomer").value,
+        entry_date: document.getElementById("txnDate").value,
+        type: document.getElementById("txnType").value,
+        product: document.getElementById("txnProduct").value.trim(),
+        qty: num(document.getElementById("txnQty").value) || null,
+        amount: num(document.getElementById("txnAmount").value),
+        notes: document.getElementById("txnNotes").value.trim(),
+        created_by: profile.id,
+      },
+    ]);
+    document.getElementById("creditTxnForm").reset();
+    document.getElementById("txnDate").value = currentDate();
+    await loadCustomers();
+    showMsg("Transaction recorded.", "ok");
+  } catch (err) {
+    showMsg(err.message || "Could not record transaction.", "error");
+  }
+});
+
+// ---------- Targets (Owner/Manager) ----------
+async function monthlyRevenueAndExpenses(dateStr) {
+  const { start, end } = monthRange(dateStr);
+  const sales = await lpgCloud.select("godown_vehicle_sales", { gte: { entry_date: start }, lte: { entry_date: end } });
+  let revenue = 0;
+  sales.forEach((r) => {
+    const rate = ratesCache[r.product] != null ? ratesCache[r.product] : 0;
+    revenue += Number(r.qty || 0) * rate;
+  });
+  const debits = await lpgCloud.select("godown_debits", { gte: { entry_date: start }, lte: { entry_date: end } });
+  let expenses = 0;
+  debits.forEach((r) => {
+    expenses += num(r.diesel_expenses) + num(r.refill_commission) + num(r.local_expenses) + num(r.vehicle_expenses);
+  });
+  const manuals = await lpgCloud.select("accounts_daily", { gte: { entry_date: start }, lte: { entry_date: end } });
+  manuals.forEach((r) => {
+    expenses += num(r.salary_advance) + num(r.admin_other_purchase) + num(r.other_expenses);
+  });
+  return { revenue, expenses };
+}
+
+async function loadTargets() {
+  const daily = await lpgCloud.select("sales_targets", { eq: { period_type: "daily", period_start: currentDate() } });
+  document.getElementById("targetDaily").value = daily[0] ? daily[0].target_amount : 0;
+  const { start } = monthRange(currentDate());
+  const monthly = await lpgCloud.select("sales_targets", { eq: { period_type: "monthly", period_start: start } });
+  document.getElementById("targetMonthly").value = monthly[0] ? monthly[0].target_amount : 0;
+
+  document.getElementById("targetDailyActual").textContent = document.getElementById("sumCredit").textContent;
+  const { revenue } = await monthlyRevenueAndExpenses(currentDate());
+  document.getElementById("targetMonthlyActual").textContent = fmt(revenue);
+}
+
+document.getElementById("targetSaveBtn").addEventListener("click", async () => {
+  hideMsg();
+  try {
+    const { start } = monthRange(currentDate());
+    await lpgCloud.upsert(
+      "sales_targets",
+      [{ period_type: "daily", period_start: currentDate(), target_amount: num(document.getElementById("targetDaily").value), created_by: profile.id }],
+      "period_type,period_start"
+    );
+    await lpgCloud.upsert(
+      "sales_targets",
+      [{ period_type: "monthly", period_start: start, target_amount: num(document.getElementById("targetMonthly").value), created_by: profile.id }],
+      "period_type,period_start"
+    );
+    showMsg("Targets saved.", "ok");
+  } catch (err) {
+    showMsg(err.message || "Could not save targets.", "error");
+  }
+});
+
+// ---------- Profit & Loss (Owner only) ----------
+async function loadPL() {
+  const revenue = moneyText(document.getElementById("sumCredit"));
+  const expenses = moneyText(document.getElementById("sumDebit"));
+  document.getElementById("plRevenue").textContent = fmt(revenue);
+  document.getElementById("plExpenses").textContent = fmt(expenses);
+  document.getElementById("plToday").textContent = fmt(revenue - expenses);
+
+  const { revenue: mRevenue, expenses: mExpenses } = await monthlyRevenueAndExpenses(currentDate());
+  document.getElementById("plMonthRevenue").textContent = fmt(mRevenue);
+  document.getElementById("plMonthExpenses").textContent = fmt(mExpenses);
+  document.getElementById("plMonth").textContent = fmt(mRevenue - mExpenses);
+}
+
+// ---------- Team (Owner only) ----------
+async function loadTeam() {
+  const rows = await lpgCloud.select("profiles", { order: { column: "full_name", ascending: true } });
+  const body = document.getElementById("teamBody");
+  body.innerHTML = "";
+  rows.forEach((r) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeHtml(r.full_name)}</td>
+      <td>${escapeHtml(r.phone)}</td>
+      <td>${escapeHtml(r.vehicle_number)} ${escapeHtml(r.line)}</td>
+      <td>
+        <select data-id="${r.id}" class="roleSelect">
+          <option value="owner" ${r.role === "owner" ? "selected" : ""}>Owner</option>
+          <option value="manager" ${r.role === "manager" ? "selected" : ""}>Manager</option>
+          <option value="accounts" ${r.role === "accounts" ? "selected" : ""}>Accounts</option>
+          <option value="staff" ${r.role === "staff" ? "selected" : ""}>Staff</option>
+          <option value="driver" ${r.role === "driver" ? "selected" : ""}>Delivery Boy</option>
+        </select>
+      </td>
+      <td><button class="btn small" data-save="${r.id}">Save</button></td>
+    `;
+    body.appendChild(tr);
+  });
+  body.querySelectorAll("button[data-save]").forEach((b) => {
+    b.addEventListener("click", async () => {
+      const id = b.getAttribute("data-save");
+      const sel = body.querySelector(`select[data-id="${id}"]`);
+      try {
+        await lpgCloud.update("profiles", id, { role: sel.value });
+        showMsg("Role updated.", "ok");
+      } catch (err) {
+        showMsg(err.message || "Could not update role.", "error");
+      }
+    });
+  });
+}
+
+// ---------- Role-based visibility ----------
+function applyRoleVisibility(role) {
+  const isOwner = role === "owner";
+  const isOwnerOrManager = role === "owner" || role === "manager";
+  document.getElementById("tabTargets").style.display = isOwnerOrManager ? "" : "none";
+  document.getElementById("tabPL").style.display = isOwner ? "" : "none";
+  document.getElementById("tabTeam").style.display = isOwner ? "" : "none";
+}
+
 // ---------- init ----------
 async function loadAllForDate() {
   await loadRates();
@@ -257,18 +460,27 @@ async function loadAllForDate() {
   lastCounted = await loadGodownCash();
   await loadManual();
   recomputeBalance();
+  await loadCustomers();
+  if (profile.role === "owner" || profile.role === "manager") await loadTargets();
+  if (profile.role === "owner") {
+    await loadPL();
+    await loadTeam();
+  }
 }
 
 document.getElementById("entryDate").addEventListener("change", () => {
+  document.getElementById("txnDate").value = currentDate();
   loadAllForDate().catch((e) => showMsg(e.message, "error"));
 });
 
 (async () => {
   try {
-    profile = await lpgCloud.requireRole("accounts");
+    profile = await lpgCloud.requireRole(["owner", "manager", "accounts"]);
     if (!profile) return;
-    document.getElementById("whoName").textContent = profile.full_name + " (Accounts)";
+    document.getElementById("whoName").textContent = profile.full_name + " (" + roleLabel(profile.role) + ")";
+    applyRoleVisibility(profile.role);
     document.getElementById("entryDate").value = new Date().toISOString().slice(0, 10);
+    document.getElementById("txnDate").value = currentDate();
     await loadAllForDate();
   } catch (err) {
     showMsg(err.message || "Failed to load.", "error");

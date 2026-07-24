@@ -12,9 +12,16 @@ create extension if not exists pgcrypto;
 -- credentials directly, so self-declared role is an acceptable trust
 -- boundary for now. If this ever needs hardening (untrusted signups),
 -- switch to an owner-only invite edge function instead of open signup.
+--
+-- Roles:
+--   owner    - full access to everything, incl. P&L, and can change anyone's role
+--   manager  - daily accounts, stock, delivery, targets (no P&L view)
+--   accounts - ledger/bookkeeping only
+--   staff    - godown incharge: stock, vehicle sales, debits, cash count
+--   driver   - delivery boy: trip sheet
 create table if not exists profiles (
   id          uuid primary key references auth.users(id) on delete cascade,
-  role        text not null check (role in ('accounts', 'godown', 'driver')),
+  role        text not null check (role in ('owner', 'manager', 'accounts', 'staff', 'driver')),
   full_name   text not null,
   phone       text,
   vehicle_number text,   -- drivers: the vehicle they usually run
@@ -24,7 +31,7 @@ create table if not exists profiles (
 
 alter table profiles enable row level security;
 
--- security definer helper so RLS policies can read the caller's own role
+-- security definer helpers so RLS policies can read the caller's own role
 -- without recursing into profiles' own RLS.
 create or replace function current_role_name()
 returns text
@@ -36,9 +43,31 @@ as $$
   select role from profiles where id = auth.uid();
 $$;
 
+-- owner/manager/accounts: can see and edit the day-to-day ledger
+create or replace function is_office_role()
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select current_role_name() in ('owner', 'manager', 'accounts');
+$$;
+
+-- owner/manager: operational oversight (stock, delivery, targets) minus P&L
+create or replace function is_ops_role()
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select current_role_name() in ('owner', 'manager');
+$$;
+
 drop policy if exists profiles_select on profiles;
 create policy profiles_select on profiles for select
-  using (id = auth.uid() or current_role_name() = 'accounts');
+  using (id = auth.uid() or is_office_role());
 
 drop policy if exists profiles_insert on profiles;
 create policy profiles_insert on profiles for insert
@@ -46,28 +75,43 @@ create policy profiles_insert on profiles for insert
 
 drop policy if exists profiles_update on profiles;
 create policy profiles_update on profiles for update
-  using (id = auth.uid() or current_role_name() = 'accounts');
+  using (id = auth.uid() or current_role_name() = 'owner');
 
 -- =========================================================
--- 2. delivery_trips / delivery_entries — Delivery Boy form
+-- 2. delivery_trips / delivery_entries — Delivery Boy trip sheet
 -- =========================================================
 create table if not exists delivery_trips (
-  id            uuid primary key default gen_random_uuid(),
-  driver_id     uuid not null references profiles(id),
-  driver_name   text not null,
-  vehicle_number text not null,
-  line          text,
-  trip_date     date not null default current_date,
-  starting_kms  numeric,
-  ending_kms    numeric,
-  created_at    timestamptz not null default now()
+  id              uuid primary key default gen_random_uuid(),
+  driver_id       uuid not null references profiles(id),
+  driver_name     text not null,
+  vehicle_number  text not null,
+  line            text,
+  trip_date       date not null default current_date,
+  starting_kms    numeric,
+  ending_kms      numeric,
+
+  -- uplift (what the driver loaded at the godown before heading out)
+  total_uplifted  numeric not null default 0,
+  uplift_time     text,          -- 'HH:MM', kept as text to avoid timezone fuss
+  product         text,          -- main cylinder product carried this trip
+  rate            numeric not null default 0,  -- ₹ per unit, snapshot from product_rates
+
+  -- cash denomination count for what the driver collected/handed back
+  note_500 int not null default 0, note_200 int not null default 0,
+  note_100 int not null default 0, note_50  int not null default 0,
+  note_20  int not null default 0, note_10  int not null default 0,
+  coin_10  int not null default 0, coin_5   int not null default 0,
+  coin_2   int not null default 0, coin_1   int not null default 0,
+  total_paid_to_accounts numeric not null default 0,
+
+  created_at      timestamptz not null default now()
 );
 
 alter table delivery_trips enable row level security;
 
 drop policy if exists delivery_trips_select on delivery_trips;
 create policy delivery_trips_select on delivery_trips for select
-  using (driver_id = auth.uid() or current_role_name() = 'accounts');
+  using (driver_id = auth.uid() or is_office_role() or is_ops_role());
 
 drop policy if exists delivery_trips_insert on delivery_trips;
 create policy delivery_trips_insert on delivery_trips for insert
@@ -75,7 +119,7 @@ create policy delivery_trips_insert on delivery_trips for insert
 
 drop policy if exists delivery_trips_update on delivery_trips;
 create policy delivery_trips_update on delivery_trips for update
-  using (driver_id = auth.uid() or current_role_name() = 'accounts');
+  using (driver_id = auth.uid() or is_office_role() or is_ops_role());
 
 create table if not exists delivery_entries (
   id            uuid primary key default gen_random_uuid(),
@@ -87,7 +131,9 @@ create table if not exists delivery_entries (
   bio_metric    text,
   safety_check  text,
   otp           text,
-  amount        numeric not null default 0,
+  delivered_qty numeric not null default 1,
+  return_qty    numeric not null default 0,
+  amount        numeric not null default 0,   -- incidental/COD amount, not the standard cylinder price
   created_at    timestamptz not null default now()
 );
 
@@ -96,7 +142,7 @@ alter table delivery_entries enable row level security;
 drop policy if exists delivery_entries_select on delivery_entries;
 create policy delivery_entries_select on delivery_entries for select
   using (
-    current_role_name() = 'accounts'
+    is_office_role() or is_ops_role()
     or exists (select 1 from delivery_trips t where t.id = trip_id and t.driver_id = auth.uid())
   );
 
@@ -109,33 +155,34 @@ create policy delivery_entries_insert on delivery_entries for insert
 drop policy if exists delivery_entries_update on delivery_entries;
 create policy delivery_entries_update on delivery_entries for update
   using (
-    current_role_name() = 'accounts'
+    is_office_role() or is_ops_role()
     or exists (select 1 from delivery_trips t where t.id = trip_id and t.driver_id = auth.uid())
   );
 
 drop policy if exists delivery_entries_delete on delivery_entries;
 create policy delivery_entries_delete on delivery_entries for delete
   using (
-    current_role_name() = 'accounts'
+    is_office_role() or is_ops_role()
     or exists (select 1 from delivery_trips t where t.id = trip_id and t.driver_id = auth.uid())
   );
 
 -- =========================================================
--- 3. godown_* — Godown Incharge form
+-- 3. godown_stock — Staff (Godown Incharge): per product/condition qty
 -- =========================================================
+-- One row per (date, product, condition). "condition" lets each product
+-- track whatever states actually apply to it:
+--   cylinders (14.2kg/19kg/5kg)  -> 'full', 'empty'
+--   DPR / Regulator              -> 'sound', 'defective'
+--   accessories (hose, lighter, book, stove) -> 'qty' (single bucket)
 create table if not exists godown_stock (
   id             uuid primary key default gen_random_uuid(),
   entry_date     date not null default current_date,
   product        text not null,
-  total_upload   numeric not null default 0,
-  sv_load        numeric not null default 0,
-  sv_empty       numeric not null default 0,
-  return_load    numeric not null default 0,
-  return_empty   numeric not null default 0,
-  delivered_load numeric not null default 0,
+  condition      text not null default 'qty' check (condition in ('full', 'empty', 'sound', 'defective', 'qty')),
+  quantity       numeric not null default 0,
   created_by     uuid references profiles(id),
   created_at     timestamptz not null default now(),
-  unique (entry_date, product)
+  unique (entry_date, product, condition)
 );
 
 create table if not exists godown_vehicle_sales (
@@ -189,26 +236,25 @@ begin
   loop
     execute format('drop policy if exists %I_select on %I', t, t);
     execute format($p$create policy %I_select on %I for select
-      using (current_role_name() in ('godown','accounts'))$p$, t, t);
+      using (current_role_name() = 'staff' or is_office_role() or is_ops_role())$p$, t, t);
 
     execute format('drop policy if exists %I_insert on %I', t, t);
     execute format($p$create policy %I_insert on %I for insert
-      with check (current_role_name() = 'godown')$p$, t, t);
+      with check (current_role_name() in ('staff', 'owner', 'manager'))$p$, t, t);
 
     execute format('drop policy if exists %I_update on %I', t, t);
     execute format($p$create policy %I_update on %I for update
-      using (current_role_name() in ('godown','accounts'))$p$, t, t);
+      using (current_role_name() = 'staff' or is_office_role() or is_ops_role())$p$, t, t);
 
     execute format('drop policy if exists %I_delete on %I', t, t);
     execute format($p$create policy %I_delete on %I for delete
-      using (current_role_name() = 'accounts')$p$, t, t);
+      using (current_role_name() in ('owner', 'manager', 'staff'))$p$, t, t);
   end loop;
 end $$;
 
 -- =========================================================
--- 3b. product_rates — accounts office sets ₹ rate per cylinder/product,
---     used to turn the godown's vehicle-sales quantities into ₹ amounts.
---     (On the paper form this rate is left blank for the office to fill in.)
+-- 3b. product_rates — office sets ₹ rate per cylinder/product,
+--     used to turn quantities into ₹ amounts.
 -- =========================================================
 create table if not exists product_rates (
   product     text primary key,
@@ -224,14 +270,81 @@ create policy product_rates_select on product_rates for select
 
 drop policy if exists product_rates_write on product_rates;
 create policy product_rates_write on product_rates for all
-  using (current_role_name() = 'accounts')
-  with check (current_role_name() = 'accounts');
+  using (is_office_role())
+  with check (is_office_role());
+
+-- =========================================================
+-- 3c. sales_targets — Owner/Manager set a ₹ sales target per period
+-- =========================================================
+create table if not exists sales_targets (
+  id            uuid primary key default gen_random_uuid(),
+  period_type   text not null check (period_type in ('daily', 'monthly')),
+  period_start  date not null,
+  target_amount numeric not null default 0,
+  notes         text,
+  created_by    uuid references profiles(id),
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now(),
+  unique (period_type, period_start)
+);
+
+alter table sales_targets enable row level security;
+
+drop policy if exists sales_targets_select on sales_targets;
+create policy sales_targets_select on sales_targets for select
+  using (is_office_role() or is_ops_role());
+
+drop policy if exists sales_targets_write on sales_targets;
+create policy sales_targets_write on sales_targets for all
+  using (is_ops_role())
+  with check (is_ops_role());
+
+-- =========================================================
+-- 3d. credit_customers / credit_transactions — customers who buy on
+--     credit (pay later). Balance owed = sum(sale amounts) - sum(payments).
+-- =========================================================
+create table if not exists credit_customers (
+  id           uuid primary key default gen_random_uuid(),
+  consumer_no  text,
+  name         text not null,
+  phone        text,
+  address      text,
+  created_by   uuid references profiles(id),
+  created_at   timestamptz not null default now()
+);
+
+create table if not exists credit_transactions (
+  id            uuid primary key default gen_random_uuid(),
+  customer_id   uuid not null references credit_customers(id) on delete cascade,
+  entry_date    date not null default current_date,
+  type          text not null check (type in ('sale', 'payment')),
+  product       text,
+  qty           numeric,
+  amount        numeric not null default 0,
+  notes         text,
+  created_by    uuid references profiles(id),
+  created_at    timestamptz not null default now()
+);
+
+alter table credit_customers enable row level security;
+alter table credit_transactions enable row level security;
+
+drop policy if exists credit_customers_all on credit_customers;
+create policy credit_customers_all on credit_customers for all
+  using (is_office_role())
+  with check (is_office_role());
+
+drop policy if exists credit_transactions_all on credit_transactions;
+create policy credit_transactions_all on credit_transactions for all
+  using (is_office_role())
+  with check (is_office_role());
 
 -- =========================================================
 -- 4. accounts_daily — office-only manual figures (bank deposit,
 --    salary/advance, admin & other expenses, opening balance, notes)
---    that only the accounts office knows and aren't captured by the
---    other two forms.
+--    that aren't captured by the other forms. Owner/Manager/Accounts
+--    can all edit; P&L (derived from this + everything else) is
+--    computed client-side and shown only to Owner.
 -- =========================================================
 create table if not exists accounts_daily (
   id                    uuid primary key default gen_random_uuid(),
@@ -251,5 +364,5 @@ alter table accounts_daily enable row level security;
 
 drop policy if exists accounts_daily_all on accounts_daily;
 create policy accounts_daily_all on accounts_daily for all
-  using (current_role_name() = 'accounts')
-  with check (current_role_name() = 'accounts');
+  using (is_office_role())
+  with check (is_office_role());
