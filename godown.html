@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Godown Incharge — LPG Dealer Accounts</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <div>
+    <h1>SR Bharat Gas, Kammapuram</h1>
+    <div class="sub">Godown Incharge</div>
+  </div>
+  <div class="who">
+    <span id="whoName"></span>
+    <button class="btn ghost" id="signOutBtn">Sign Out</button>
+  </div>
+</header>
+
+<main>
+  <div class="card">
+    <div class="grid" style="grid-template-columns:200px;">
+      <div>
+        <label>Date</label>
+        <input type="date" id="entryDate" required />
+      </div>
+    </div>
+  </div>
+
+  <div id="msg" class="msg hidden"></div>
+
+  <div class="tabs">
+    <button class="active" data-tab="stock">Cylinder Stock</button>
+    <button data-tab="sales">Vehicle Sales</button>
+    <button data-tab="debits">Total Debits</button>
+    <button data-tab="cash">Cash Count</button>
+  </div>
+
+  <div class="card tab-panel" id="panel-stock">
+    <h2>Cylinder Stock (Total Upload / SV-ADD / Return / Delivered)</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Product</th><th>Total Upload</th><th>SV/ADD Load</th><th>SV/ADD Empty</th><th>Return Load</th><th>Return Empty</th><th>Delivered</th></tr>
+        </thead>
+        <tbody id="stockBody"></tbody>
+      </table>
+    </div>
+    <div class="row-actions"><button class="btn" id="stockSaveBtn">Save Stock</button></div>
+  </div>
+
+  <div class="card tab-panel" id="panel-sales" style="display:none;">
+    <h2>Vehicle-wise Sale</h2>
+    <form id="salesForm">
+      <div class="grid">
+        <div>
+          <label>Vehicle Number</label>
+          <input type="text" id="svVehicle" required placeholder="TN-91-R-3889" />
+        </div>
+        <div>
+          <label>Product</label>
+          <select id="svProduct" required>
+            <option value="14.2 Kg">14.2 Kg</option>
+            <option value="19 Kg">19 Kg</option>
+            <option value="5 Kg BMCG">5 Kg BMCG</option>
+            <option value="Stove">Stove</option>
+            <option value="Hose">Hose</option>
+            <option value="Lighter">Lighter</option>
+            <option value="DPR">DPR</option>
+            <option value="NC">NC</option>
+            <option value="Additional Cylinder">Additional Cylinder</option>
+            <option value="Book">Book</option>
+          </select>
+        </div>
+        <div>
+          <label>Qty</label>
+          <input type="number" id="svQty" step="1" required />
+        </div>
+      </div>
+      <div class="row-actions"><button type="submit" class="btn">Add / Update</button></div>
+    </form>
+    <div class="table-wrap" style="margin-top:12px;">
+      <table>
+        <thead><tr><th>Vehicle</th><th>Product</th><th>Qty</th><th></th></tr></thead>
+        <tbody id="salesBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card tab-panel" id="panel-debits" style="display:none;">
+    <h2>Total Debits</h2>
+    <form id="debitsForm">
+      <div class="grid">
+        <div><label>Diesel Expenses (₹)</label><input type="number" id="dDiesel" step="0.01" value="0" /></div>
+        <div><label>Refill Commission (₹)</label><input type="number" id="dRefill" step="0.01" value="0" /></div>
+        <div><label>Online Payment (₹)</label><input type="number" id="dOnline" step="0.01" value="0" /></div>
+        <div><label>G-Pay Payment (₹)</label><input type="number" id="dGpay" step="0.01" value="0" /></div>
+        <div><label>Local Expenses (₹)</label><input type="number" id="dLocal" step="0.01" value="0" /></div>
+        <div><label>Vehicle Expenses (₹)</label><input type="number" id="dVehicle" step="0.01" value="0" /></div>
+      </div>
+      <div class="totals" style="margin-top:12px;">
+        <div class="tile debit"><div class="label">Total Debits</div><div class="value" id="dTotal">₹0</div></div>
+      </div>
+      <div class="row-actions"><button type="submit" class="btn">Save Debits</button></div>
+    </form>
+  </div>
+
+  <div class="card tab-panel" id="panel-cash" style="display:none;">
+    <h2>Cash Denomination Count</h2>
+    <form id="cashForm">
+      <div class="grid">
+        <div><label>₹500 x</label><input type="number" id="n500" min="0" value="0" /></div>
+        <div><label>₹200 x</label><input type="number" id="n200" min="0" value="0" /></div>
+        <div><label>₹100 x</label><input type="number" id="n100" min="0" value="0" /></div>
+        <div><label>₹50 x</label><input type="number" id="n50" min="0" value="0" /></div>
+        <div><label>₹20 x</label><input type="number" id="n20" min="0" value="0" /></div>
+        <div><label>₹10 x</label><input type="number" id="n10" min="0" value="0" /></div>
+        <div><label>Coin ₹10 x</label><input type="number" id="c10" min="0" value="0" /></div>
+        <div><label>Coin ₹5 x</label><input type="number" id="c5" min="0" value="0" /></div>
+        <div><label>Coin ₹2 x</label><input type="number" id="c2" min="0" value="0" /></div>
+        <div><label>Coin ₹1 x</label><input type="number" id="c1" min="0" value="0" /></div>
+      </div>
+      <div class="totals" style="margin-top:12px;">
+        <div class="tile credit"><div class="label">Total Cash</div><div class="value" id="cashTotal">₹0</div></div>
+      </div>
+      <div class="grid" style="margin-top:12px;">
+        <div><label>Godown Incharge Sign (name)</label><input type="text" id="signGodown" /></div>
+        <div><label>Cash Confirmed By</label><input type="text" id="signCash" /></div>
+        <div><label>Driver Sign (name)</label><input type="text" id="signDriver" /></div>
+      </div>
+      <div class="row-actions"><button type="submit" class="btn">Save Cash Count</button></div>
+    </form>
+  </div>
+</main>
+
+<footer class="note">Internal use only — SR Bharat Gas, Kammapuram</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/cloud.js"></script>
+<script src="js/godown.js"></script>
+</body>
+</html>

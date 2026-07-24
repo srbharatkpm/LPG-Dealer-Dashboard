@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>LPG Dealer Accounts — SR Bharat Gas, Kammapuram</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <div>
+    <h1>SR Bharat Gas, Kammapuram</h1>
+    <div class="sub">LPG Dealer Accounts</div>
+  </div>
+</header>
+
+<main>
+  <div class="card" style="max-width:460px;margin:24px auto;">
+    <div class="tabs">
+      <button id="tabSignIn" class="active">Sign In</button>
+      <button id="tabSignUp">Sign Up</button>
+    </div>
+
+    <div id="msg" class="msg hidden"></div>
+
+    <form id="signInForm">
+      <div class="grid" style="grid-template-columns:1fr;">
+        <div>
+          <label>Email</label>
+          <input type="email" id="siEmail" required autocomplete="username" />
+        </div>
+        <div>
+          <label>Password</label>
+          <input type="password" id="siPassword" required autocomplete="current-password" />
+        </div>
+      </div>
+      <div class="row-actions">
+        <button type="submit" class="btn" id="siBtn">Sign In</button>
+      </div>
+    </form>
+
+    <form id="signUpForm" style="display:none;">
+      <div class="grid" style="grid-template-columns:1fr;">
+        <div>
+          <label>I am a</label>
+          <select id="suRole" required>
+            <option value="">Select role</option>
+            <option value="accounts">Accounts Office</option>
+            <option value="godown">Godown Incharge</option>
+            <option value="driver">Delivery Boy</option>
+          </select>
+        </div>
+        <div>
+          <label>Full Name</label>
+          <input type="text" id="suName" required />
+        </div>
+        <div>
+          <label>Phone</label>
+          <input type="tel" id="suPhone" />
+        </div>
+        <div id="suDriverFields" style="display:none;">
+          <div class="grid" style="grid-template-columns:1fr 1fr;padding:0;">
+            <div>
+              <label>Usual Vehicle #</label>
+              <input type="text" id="suVehicle" placeholder="TN-91-R-3889" />
+            </div>
+            <div>
+              <label>Usual Line</label>
+              <input type="text" id="suLine" placeholder="Local / Mainroad" />
+            </div>
+          </div>
+        </div>
+        <div>
+          <label>Email</label>
+          <input type="email" id="suEmail" required autocomplete="username" />
+        </div>
+        <div>
+          <label>Password</label>
+          <input type="password" id="suPassword" required minlength="6" autocomplete="new-password" />
+        </div>
+      </div>
+      <div class="row-actions">
+        <button type="submit" class="btn" id="suBtn">Create Account</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="role-cards" style="max-width:700px;margin:0 auto;">
+    <div class="role-card">
+      <div class="icon">🧾</div>
+      <h3>Accounts Office</h3>
+      <p>Daily Credit/Debit ledger, rolled up from Godown &amp; Delivery entries.</p>
+    </div>
+    <div class="role-card">
+      <div class="icon">🏭</div>
+      <h3>Godown Incharge</h3>
+      <p>Cylinder stock, vehicle sales, debits, cash denomination count.</p>
+    </div>
+    <div class="role-card">
+      <div class="icon">🚚</div>
+      <h3>Delivery Boy</h3>
+      <p>Trip sheet with consumer-wise delivery entries.</p>
+    </div>
+  </div>
+</main>
+
+<footer class="note">Internal use only — SR Bharat Gas, Kammapuram</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/cloud.js"></script>
+<script src="js/index.js"></script>
+</body>
+</html>

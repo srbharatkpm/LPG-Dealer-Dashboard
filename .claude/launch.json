@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "lpg-dealer-accounts",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8781"],
+      "port": 8781
+    }
+  ]
+}

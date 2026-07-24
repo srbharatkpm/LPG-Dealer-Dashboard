@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Accounts Office — LPG Dealer Accounts</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <div>
+    <h1>SR Bharat Gas, Kammapuram</h1>
+    <div class="sub">Accounts Office</div>
+  </div>
+  <div class="who">
+    <span id="whoName"></span>
+    <button class="btn ghost" id="signOutBtn">Sign Out</button>
+  </div>
+</header>
+
+<main>
+  <div class="card">
+    <div class="grid" style="grid-template-columns:200px;">
+      <div>
+        <label>Date</label>
+        <input type="date" id="entryDate" required />
+      </div>
+    </div>
+  </div>
+
+  <div id="msg" class="msg hidden"></div>
+
+  <div class="card">
+    <h2>Daily Summary</h2>
+    <div class="totals">
+      <div class="tile credit"><div class="label">Total Credit (Cylinder Sales)</div><div class="value" id="sumCredit">₹0</div></div>
+      <div class="tile debit"><div class="label">Total Debit (Expenditure)</div><div class="value" id="sumDebit">₹0</div></div>
+      <div class="tile"><div class="label">Online / G-Pay Payment</div><div class="value" id="sumOnlineGpay">₹0</div></div>
+      <div class="tile"><div class="label">Bank Deposit</div><div class="value" id="sumBankDeposit">₹0</div></div>
+      <div class="tile"><div class="label">Balance Amount in Office</div><div class="value" id="sumBalance">₹0</div></div>
+      <div class="tile"><div class="label">Cash Counted (Godown)</div><div class="value" id="sumCounted">₹0</div></div>
+    </div>
+    <div id="mismatchMsg" class="msg hidden" style="margin-top:12px;"></div>
+  </div>
+
+  <div class="tabs">
+    <button class="active" data-tab="sales">Cylinder Sales</button>
+    <button data-tab="trips">Delivery Trips</button>
+    <button data-tab="manual">Office Entries</button>
+  </div>
+
+  <div class="card tab-panel" id="panel-sales">
+    <h2>Vehicle Sales &amp; Rates</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Product</th><th>Total Qty</th><th>Rate (₹)</th><th>Amount (₹)</th></tr></thead>
+        <tbody id="ratesBody"></tbody>
+      </table>
+    </div>
+    <div class="row-actions"><button class="btn" id="ratesSaveBtn">Save Rates</button></div>
+
+    <h2 style="margin-top:18px;">Raw Vehicle-wise Entries (from Godown)</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Vehicle</th><th>Product</th><th>Qty</th></tr></thead>
+        <tbody id="rawSalesBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card tab-panel" id="panel-trips" style="display:none;">
+    <h2>Delivery Trips</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Driver</th><th>Vehicle</th><th>Line</th><th>KMs</th><th>Deliveries</th><th>Amount Collected</th></tr></thead>
+        <tbody id="tripsBody"></tbody>
+      </table>
+    </div>
+    <div class="totals" style="margin-top:12px;">
+      <div class="tile"><div class="label">Total Delivery Collections (informational — not auto-added to Credit)</div><div class="value" id="deliveryTotal">₹0</div></div>
+    </div>
+  </div>
+
+  <div class="card tab-panel" id="panel-manual" style="display:none;">
+    <h2>Godown Debits (reference, entered by Godown Incharge)</h2>
+    <div class="totals">
+      <div class="tile debit"><div class="label">Diesel</div><div class="value" id="gDiesel">₹0</div></div>
+      <div class="tile debit"><div class="label">Refill Commission</div><div class="value" id="gRefill">₹0</div></div>
+      <div class="tile debit"><div class="label">Local</div><div class="value" id="gLocal">₹0</div></div>
+      <div class="tile debit"><div class="label">Vehicle Expenses</div><div class="value" id="gVehicle">₹0</div></div>
+      <div class="tile"><div class="label">Online Payment</div><div class="value" id="gOnline">₹0</div></div>
+      <div class="tile"><div class="label">G-Pay Payment</div><div class="value" id="gGpay">₹0</div></div>
+    </div>
+
+    <h2 style="margin-top:18px;">Office-Only Entries</h2>
+    <form id="manualForm">
+      <div class="grid">
+        <div><label>Opening Amount (₹)</label><input type="number" id="mOpening" step="0.01" value="0" /></div>
+        <div><label>Salary &amp; Advance (₹)</label><input type="number" id="mSalary" step="0.01" value="0" /></div>
+        <div><label>Other Purchase / Admin (₹)</label><input type="number" id="mAdmin" step="0.01" value="0" /></div>
+        <div><label>Other Expenses (₹)</label><input type="number" id="mOther" step="0.01" value="0" /></div>
+        <div><label>Bank / ATM Deposit (₹)</label><input type="number" id="mBank" step="0.01" value="0" /></div>
+      </div>
+      <div><label>Notes</label><textarea id="mNotes" rows="2"></textarea></div>
+      <div class="row-actions"><button type="submit" class="btn">Save Office Entries</button></div>
+    </form>
+  </div>
+</main>
+
+<footer class="note">Internal use only — SR Bharat Gas, Kammapuram</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/cloud.js"></script>
+<script src="js/accounts.js"></script>
+</body>
+</html>
