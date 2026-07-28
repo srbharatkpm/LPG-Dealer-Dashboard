@@ -3,8 +3,6 @@ const tabSignUp = document.getElementById("tabSignUp");
 const signInForm = document.getElementById("signInForm");
 const signUpForm = document.getElementById("signUpForm");
 const msg = document.getElementById("msg");
-const suRole = document.getElementById("suRole");
-const suDriverFields = document.getElementById("suDriverFields");
 
 tabSignIn.addEventListener("click", () => {
   tabSignIn.classList.add("active");
@@ -22,10 +20,6 @@ tabSignUp.addEventListener("click", () => {
   hideMsg();
 });
 
-suRole.addEventListener("change", () => {
-  suDriverFields.style.display = suRole.value === "driver" ? "" : "none";
-});
-
 function showMsg(text, kind) {
   msg.textContent = text;
   msg.className = "msg " + kind;
@@ -38,7 +32,26 @@ function routeForRole(role) {
   if (role === "owner" || role === "manager" || role === "accounts") return "accounts.html";
   if (role === "staff") return "godown.html";
   if (role === "driver") return "delivery.html";
-  return null;
+  return null; // 'pending' (or anything unrecognised) has nowhere to go yet
+}
+
+// The role comes from the database, not from anything typed here — a new
+// signup sits on 'pending' until the owner assigns it from the Team tab.
+function handleProfile(profile) {
+  if (!profile) {
+    showMsg("Signed in, but no profile was found. Tell the office.", "error");
+    return;
+  }
+  const dest = routeForRole(profile.role);
+  if (dest) {
+    window.location.href = dest;
+    return;
+  }
+  showMsg(
+    "Your account is waiting for the owner to assign your role. " +
+      "Once that's done, sign in again and you'll go straight to your page.",
+    "ok"
+  );
 }
 
 signInForm.addEventListener("submit", async (e) => {
@@ -50,13 +63,7 @@ signInForm.addEventListener("submit", async (e) => {
   btn.disabled = true;
   try {
     await lpgCloud.signIn(email, password);
-    const profile = await lpgCloud.getProfile();
-    if (!profile) {
-      showMsg("Signed in, but no profile role found. Contact the office.", "error");
-      return;
-    }
-    const dest = routeForRole(profile.role);
-    if (dest) window.location.href = dest;
+    handleProfile(await lpgCloud.getProfile());
   } catch (err) {
     showMsg(err.message || "Sign in failed.", "error");
   } finally {
@@ -67,7 +74,6 @@ signInForm.addEventListener("submit", async (e) => {
 signUpForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   hideMsg();
-  const role = suRole.value;
   const email = document.getElementById("suEmail").value.trim();
   const password = document.getElementById("suPassword").value;
   const full_name = document.getElementById("suName").value.trim();
@@ -76,27 +82,20 @@ signUpForm.addEventListener("submit", async (e) => {
   const line = document.getElementById("suLine").value.trim();
   const btn = document.getElementById("suBtn");
 
-  if (!role) {
-    showMsg("Please select a role.", "error");
-    return;
-  }
-
   btn.disabled = true;
   try {
     const result = await lpgCloud.signUp(email, password, {
-      role,
       full_name,
       phone,
       vehicle_number,
       line,
     });
     if (result.needsConfirmation) {
-      showMsg("Account created. Please check your email to confirm, then sign in.", "ok");
+      showMsg("Account created. Confirm your email, then sign in.", "ok");
       tabSignIn.click();
-    } else {
-      const dest = routeForRole(role);
-      if (dest) window.location.href = dest;
+      return;
     }
+    handleProfile(await lpgCloud.getProfile());
   } catch (err) {
     showMsg(err.message || "Sign up failed.", "error");
   } finally {

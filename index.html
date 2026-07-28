@@ -43,17 +43,6 @@
     <form id="signUpForm" style="display:none;">
       <div class="grid" style="grid-template-columns:1fr;">
         <div>
-          <label>I am a</label>
-          <select id="suRole" required>
-            <option value="">Select role</option>
-            <option value="owner">Owner</option>
-            <option value="manager">Manager</option>
-            <option value="accounts">Accounts Office</option>
-            <option value="staff">Staff (Godown Incharge)</option>
-            <option value="driver">Delivery Boy</option>
-          </select>
-        </div>
-        <div>
           <label>Full Name</label>
           <input type="text" id="suName" required />
         </div>
@@ -61,17 +50,20 @@
           <label>Phone</label>
           <input type="tel" id="suPhone" />
         </div>
-        <div id="suDriverFields" style="display:none;">
+        <div>
           <div class="grid" style="grid-template-columns:1fr 1fr;padding:0;">
             <div>
-              <label>Usual Vehicle #</label>
+              <label>Vehicle # (drivers only)</label>
               <input type="text" id="suVehicle" placeholder="TN-91-R-3889" />
             </div>
             <div>
-              <label>Usual Line</label>
+              <label>Line (drivers only)</label>
               <input type="text" id="suLine" placeholder="Local / Mainroad" />
             </div>
           </div>
+        </div>
+        <div class="msg ok" style="font-size:12px;">
+          The owner assigns your role after you sign up — you won't see any data until then.
         </div>
         <div>
           <label>Email</label>

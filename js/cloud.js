@@ -19,17 +19,20 @@ const lpgCloud = (() => {
 
   async function signUp(email, password, profile) {
     const sb = client_();
-    // The role/name/etc go into auth user_metadata rather than straight
-    // into `profiles`, because with email confirmation switched on
-    // signUp returns a user but NO session — an insert at this point
-    // would run as `anon` and be refused. ensureProfile() creates the
-    // row later, on the first request that actually has a session.
+    // Details go into auth user_metadata rather than straight into
+    // `profiles`, because with email confirmation switched on signUp
+    // returns a user but NO session — an insert at this point would run
+    // as `anon` and be refused. ensureProfile() creates the row later,
+    // on the first request that actually has a session.
+    //
+    // Note there is no role here: the database decides it (first signup
+    // becomes the owner, everyone after lands on 'pending'), so there is
+    // nothing a crafted request from this public page could claim.
     const { data, error } = await sb.auth.signUp({
       email,
       password,
       options: {
         data: {
-          role: profile.role,
           full_name: profile.full_name,
           phone: profile.phone || null,
           vehicle_number: profile.vehicle_number || null,
@@ -47,7 +50,8 @@ const lpgCloud = (() => {
 
   // Creates this user's `profiles` row from their signup metadata if it
   // doesn't exist yet. Safe to call on every sign-in; it's a no-op once
-  // the row is there.
+  // the row is there. The 'pending' sent here is a placeholder to satisfy
+  // NOT NULL — the bootstrap_first_owner() trigger overwrites it.
   async function ensureProfile() {
     const sb = client_();
     const session = await getSession();
@@ -57,13 +61,11 @@ const lpgCloud = (() => {
     if (existing) return existing;
 
     const meta = session.user.user_metadata || {};
-    if (!meta.role) return null; // nothing to build a profile from
-
     const { data, error } = await sb
       .from("profiles")
       .insert({
         id: session.user.id,
-        role: meta.role,
+        role: "pending",
         full_name: meta.full_name || session.user.email,
         phone: meta.phone || null,
         vehicle_number: meta.vehicle_number || null,

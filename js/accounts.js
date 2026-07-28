@@ -25,7 +25,7 @@ function escapeHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 function roleLabel(role) {
-  return { owner: "Owner", manager: "Manager", accounts: "Accounts", staff: "Staff", driver: "Driver" }[role] || role;
+  return { owner: "Owner", manager: "Manager", accounts: "Accounts", staff: "Staff", driver: "Driver", pending: "Pending" }[role] || role;
 }
 
 document.getElementById("signOutBtn").addEventListener("click", async () => {
@@ -417,6 +417,7 @@ async function loadTeam() {
       <td>${escapeHtml(r.vehicle_number)} ${escapeHtml(r.line)}</td>
       <td>
         <select data-id="${r.id}" class="roleSelect">
+          <option value="pending" ${r.role === "pending" ? "selected" : ""}>Pending — no access</option>
           <option value="owner" ${r.role === "owner" ? "selected" : ""}>Owner</option>
           <option value="manager" ${r.role === "manager" ? "selected" : ""}>Manager</option>
           <option value="accounts" ${r.role === "accounts" ? "selected" : ""}>Accounts</option>

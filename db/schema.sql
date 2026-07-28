@@ -7,11 +7,10 @@ create extension if not exists pgcrypto;
 -- =========================================================
 -- 1. profiles — one row per signed-in user, carries their role
 -- =========================================================
--- Role is self-declared at signup (see js/cloud.js). This is a small,
--- single-location business where the owner hands out the sign-up link/
--- credentials directly, so self-declared role is an acceptable trust
--- boundary for now. If this ever needs hardening (untrusted signups),
--- switch to an owner-only invite edge function instead of open signup.
+-- Roles are NEVER self-assigned. The app is served from a public URL,
+-- so anything the signup form sends is untrusted: the role is decided
+-- entirely by the bootstrap_first_owner() trigger below, and can only
+-- be changed afterwards by an owner.
 --
 -- Roles:
 --   owner    - full access to everything, incl. P&L, and can change anyone's role
@@ -19,9 +18,10 @@ create extension if not exists pgcrypto;
 --   accounts - ledger/bookkeeping only
 --   staff    - godown incharge: stock, vehicle sales, debits, cash count
 --   driver   - delivery boy: trip sheet
+--   pending  - signed up, no access to anything yet, awaiting the owner
 create table if not exists profiles (
   id          uuid primary key references auth.users(id) on delete cascade,
-  role        text not null check (role in ('owner', 'manager', 'accounts', 'staff', 'driver')),
+  role        text not null check (role in ('owner', 'manager', 'accounts', 'staff', 'driver', 'pending')),
   full_name   text not null,
   phone       text,
   vehicle_number text,   -- drivers: the vehicle they usually run
@@ -76,6 +76,58 @@ create policy profiles_insert on profiles for insert
 drop policy if exists profiles_update on profiles;
 create policy profiles_update on profiles for update
   using (id = auth.uid() or current_role_name() = 'owner');
+
+-- Widen the role check for databases created before 'pending' existed.
+alter table profiles drop constraint if exists profiles_role_check;
+alter table profiles add constraint profiles_role_check
+  check (role in ('owner', 'manager', 'accounts', 'staff', 'driver', 'pending'));
+
+-- The signup form is on the public internet, so whatever role it submits
+-- is ignored: the very first profile in the database becomes the owner
+-- (bootstrapping the business), and every later signup lands on 'pending'
+-- with no access until the owner assigns them one from the Team tab.
+create or replace function bootstrap_first_owner()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not exists (select 1 from profiles) then
+    new.role := 'owner';
+  else
+    new.role := 'pending';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists profiles_bootstrap on profiles;
+create trigger profiles_bootstrap
+  before insert on profiles
+  for each row execute function bootstrap_first_owner();
+
+-- profiles_update lets a user edit their own row (name, phone, etc.),
+-- which on its own would let anyone set their own role to 'owner'.
+-- Role changes specifically are owner-only.
+create or replace function enforce_role_change_by_owner()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.role is distinct from old.role and current_role_name() <> 'owner' then
+    raise exception 'Only the owner can change a role';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists profiles_role_guard on profiles;
+create trigger profiles_role_guard
+  before update on profiles
+  for each row execute function enforce_role_change_by_owner();
 
 -- =========================================================
 -- 2. delivery_trips / delivery_entries — Delivery Boy trip sheet
