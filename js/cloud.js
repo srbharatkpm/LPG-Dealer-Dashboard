@@ -19,29 +19,67 @@ const lpgCloud = (() => {
 
   async function signUp(email, password, profile) {
     const sb = client_();
-    const { data, error } = await sb.auth.signUp({ email, password });
-    if (error) throw error;
-    const userId = data.user && data.user.id;
-    if (!userId) {
-      // Email confirmation required before session exists.
-      return { needsConfirmation: true };
-    }
-    const { error: profErr } = await sb.from("profiles").insert({
-      id: userId,
-      role: profile.role,
-      full_name: profile.full_name,
-      phone: profile.phone || null,
-      vehicle_number: profile.vehicle_number || null,
-      line: profile.line || null,
+    // The role/name/etc go into auth user_metadata rather than straight
+    // into `profiles`, because with email confirmation switched on
+    // signUp returns a user but NO session — an insert at this point
+    // would run as `anon` and be refused. ensureProfile() creates the
+    // row later, on the first request that actually has a session.
+    const { data, error } = await sb.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          role: profile.role,
+          full_name: profile.full_name,
+          phone: profile.phone || null,
+          vehicle_number: profile.vehicle_number || null,
+          line: profile.line || null,
+        },
+      },
     });
-    if (profErr) throw profErr;
+    if (error) throw error;
+
+    if (!data.session) return { needsConfirmation: true };
+
+    await ensureProfile();
     return { needsConfirmation: false };
+  }
+
+  // Creates this user's `profiles` row from their signup metadata if it
+  // doesn't exist yet. Safe to call on every sign-in; it's a no-op once
+  // the row is there.
+  async function ensureProfile() {
+    const sb = client_();
+    const session = await getSession();
+    if (!session) return null;
+
+    const existing = await getProfile();
+    if (existing) return existing;
+
+    const meta = session.user.user_metadata || {};
+    if (!meta.role) return null; // nothing to build a profile from
+
+    const { data, error } = await sb
+      .from("profiles")
+      .insert({
+        id: session.user.id,
+        role: meta.role,
+        full_name: meta.full_name || session.user.email,
+        phone: meta.phone || null,
+        vehicle_number: meta.vehicle_number || null,
+        line: meta.line || null,
+      })
+      .select()
+      .maybeSingle();
+    if (error) throw error;
+    return data;
   }
 
   async function signIn(email, password) {
     const sb = client_();
     const { data, error } = await sb.auth.signInWithPassword({ email, password });
     if (error) throw error;
+    await ensureProfile();
     return data.session;
   }
 

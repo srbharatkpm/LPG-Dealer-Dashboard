@@ -480,27 +480,16 @@ create policy broadcast_recipients_all on broadcast_recipients for all
 -- sign-in go through the auth API, not PostgREST, so they are
 -- unaffected by these grants.
 -- =========================================================
+-- Blanket form rather than a table-by-table list: this runs last, so
+-- every table above already exists, and there is no list to fall out of
+-- sync when a table is added later.
 grant usage on schema public to authenticated;
+grant select, insert, update, delete on all tables in schema public to authenticated;
+grant usage, select on all sequences in schema public to authenticated;
+grant execute on all functions in schema public to authenticated;
 
-grant select, insert, update, delete on
-  profiles,
-  delivery_trips,
-  delivery_entries,
-  godown_stock,
-  godown_vehicle_sales,
-  godown_debits,
-  godown_cash_count,
-  product_rates,
-  sales_targets,
-  credit_customers,
-  credit_transactions,
-  accounts_daily,
-  customers,
-  whatsapp_templates,
-  whatsapp_broadcasts,
-  broadcast_recipients
-to authenticated;
-
-grant execute on function current_role_name() to authenticated;
-grant execute on function is_office_role() to authenticated;
-grant execute on function is_ops_role() to authenticated;
+-- ...and for anything created after this point.
+alter default privileges in schema public
+  grant select, insert, update, delete on tables to authenticated;
+alter default privileges in schema public
+  grant execute on functions to authenticated;
