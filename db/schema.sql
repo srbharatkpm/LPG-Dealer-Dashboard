@@ -366,3 +366,101 @@ drop policy if exists accounts_daily_all on accounts_daily;
 create policy accounts_daily_all on accounts_daily for all
   using (is_office_role())
   with check (is_office_role());
+
+-- =========================================================
+-- 5. customers — master contact list (imported from file, or grown
+--    from consumer_no/name/phone_no already typed into delivery
+--    entries), used as the audience for WhatsApp broadcasts.
+-- =========================================================
+create table if not exists customers (
+  id           uuid primary key default gen_random_uuid(),
+  consumer_no  text,
+  name         text not null,
+  phone        text not null,   -- E.164 without '+', e.g. 91XXXXXXXXXX (WhatsApp Cloud API format)
+  line         text,
+  address      text,
+  opted_out    boolean not null default false,
+  created_by   uuid references profiles(id),
+  created_at   timestamptz not null default now(),
+  unique (phone)
+);
+
+alter table customers enable row level security;
+
+drop policy if exists customers_all on customers;
+create policy customers_all on customers for all
+  using (is_office_role())
+  with check (is_office_role());
+
+-- =========================================================
+-- 6. WhatsApp broadcast — template registry + send queue.
+--
+-- Meta's WhatsApp Cloud API requires any business-initiated message
+-- (i.e. not a reply within 24h of the customer texting first) to use
+-- a pre-approved template, and caps a new number to 250 unique
+-- customers/24h until the business is verified or earns higher tiers.
+-- So sending is modeled as a QUEUE (broadcast_recipients, one row per
+-- customer, status pending/sent/failed) that gets worked off in
+-- batches over time via the send-whatsapp-broadcast edge function —
+-- never a single all-at-once blast.
+-- =========================================================
+create table if not exists whatsapp_templates (
+  id           uuid primary key default gen_random_uuid(),
+  name         text not null unique,  -- must exactly match the template name approved in Meta Business Manager
+  category     text not null check (category in ('utility', 'marketing', 'authentication')),
+  language     text not null default 'en',
+  body_text    text not null,         -- reference copy only; source of truth is Meta's WhatsApp Manager
+  param_count  int not null default 0,
+  status       text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
+  created_by   uuid references profiles(id),
+  created_at   timestamptz not null default now()
+);
+
+create table if not exists whatsapp_broadcasts (
+  id                uuid primary key default gen_random_uuid(),
+  title             text not null,
+  template_id       uuid references whatsapp_templates(id),
+  audience_filter   text not null default 'all',   -- 'all' | 'line:<name>'
+  param_values      jsonb not null default '{}'::jsonb,
+  status            text not null default 'draft' check (status in ('draft', 'sending', 'completed', 'cancelled')),
+  total_recipients  int not null default 0,
+  sent_count        int not null default 0,
+  failed_count      int not null default 0,
+  created_by        uuid references profiles(id),
+  created_at        timestamptz not null default now()
+);
+
+create table if not exists broadcast_recipients (
+  id            uuid primary key default gen_random_uuid(),
+  broadcast_id  uuid not null references whatsapp_broadcasts(id) on delete cascade,
+  customer_id   uuid not null references customers(id),
+  status        text not null default 'pending' check (status in ('pending', 'sent', 'failed', 'skipped')),
+  wa_message_id text,
+  error         text,
+  sent_at       timestamptz,
+  created_at    timestamptz not null default now(),
+  unique (broadcast_id, customer_id)
+);
+
+alter table whatsapp_templates enable row level security;
+alter table whatsapp_broadcasts enable row level security;
+alter table broadcast_recipients enable row level security;
+
+drop policy if exists whatsapp_templates_all on whatsapp_templates;
+create policy whatsapp_templates_all on whatsapp_templates for all
+  using (is_office_role())
+  with check (is_office_role());
+
+-- composing/viewing broadcasts: any office role. Actually queueing/
+-- sending is gated a level higher, inside the edge function itself
+-- (owner/manager only), since that's the point where real messages
+-- to real customers go out.
+drop policy if exists whatsapp_broadcasts_all on whatsapp_broadcasts;
+create policy whatsapp_broadcasts_all on whatsapp_broadcasts for all
+  using (is_office_role())
+  with check (is_office_role());
+
+drop policy if exists broadcast_recipients_all on broadcast_recipients;
+create policy broadcast_recipients_all on broadcast_recipients for all
+  using (is_office_role())
+  with check (is_office_role());

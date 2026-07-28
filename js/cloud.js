@@ -126,6 +126,19 @@ const lpgCloud = (() => {
     return data;
   }
 
+  async function remove(table, id) {
+    const sb = client_();
+    const { error } = await sb.from(table).delete().eq("id", id);
+    if (error) throw error;
+  }
+
+  async function callFunction(name, body) {
+    const sb = client_();
+    const { data, error } = await sb.functions.invoke(name, { body });
+    if (error) throw error;
+    return data;
+  }
+
   return {
     client: client_,
     signUp,

@@ -447,6 +447,7 @@ function applyRoleVisibility(role) {
   const isOwner = role === "owner";
   const isOwnerOrManager = role === "owner" || role === "manager";
   document.getElementById("tabTargets").style.display = isOwnerOrManager ? "" : "none";
+  document.getElementById("tabBroadcast").style.display = isOwnerOrManager ? "" : "none";
   document.getElementById("tabPL").style.display = isOwner ? "" : "none";
   document.getElementById("tabTeam").style.display = isOwner ? "" : "none";
 }
@@ -461,7 +462,10 @@ async function loadAllForDate() {
   await loadManual();
   recomputeBalance();
   await loadCustomers();
-  if (profile.role === "owner" || profile.role === "manager") await loadTargets();
+  if (profile.role === "owner" || profile.role === "manager") {
+    await loadTargets();
+    await loadBroadcastTab();
+  }
   if (profile.role === "owner") {
     await loadPL();
     await loadTeam();
