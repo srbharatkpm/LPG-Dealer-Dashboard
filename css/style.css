@@ -208,6 +208,61 @@ footer.note {
 .pill.green { background: #e9f8ef; color: var(--green); }
 .pill.amber { background: #fef3e0; color: #a8641a; }
 
+/* ── dashboard pages (stock / finance / operations) ── */
+nav.dash-nav {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 10px 18px;
+  background: var(--panel, #fff);
+  border-bottom: 1px solid var(--border);
+}
+nav.dash-nav a {
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 7px 13px;
+  border-radius: 18px;
+  border: 1px solid transparent;
+}
+nav.dash-nav a:hover { color: var(--blue); border-color: var(--border); }
+nav.dash-nav a.on { background: var(--blue); color: #fff; }
+.nav-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 6px;
+}
+
+.delta { font-size: 12px; font-weight: 600; }
+.delta.up { color: var(--green); }
+.delta.down { color: var(--red); }
+.delta.flat { color: var(--muted); font-weight: 400; }
+
+.stock-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 12px;
+}
+.stock-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  background: var(--card);
+}
+.stock-card .name { font-size: 13px; font-weight: 600; color: var(--blue-dark); }
+.stock-card .counts { display: flex; gap: 16px; margin-top: 10px; }
+.stock-card .count .n { font-size: 24px; font-weight: 700; }
+.stock-card .count .l {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.stock-card .count.warn .n { color: var(--red); }
+
 @media (max-width: 600px) {
   main { padding: 12px; }
   header.topbar { padding: 12px; }

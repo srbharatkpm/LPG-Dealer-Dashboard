@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Operations — LPG Dealer Accounts</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <div>
+    <h1>SR Bharat Gas, Kammapuram</h1>
+    <div class="sub">Operations</div>
+  </div>
+  <div class="who">
+    <span id="whoName"></span>
+    <button class="btn ghost" id="signOutBtn">Sign Out</button>
+  </div>
+</header>
+
+<nav class="dash-nav" id="dashNav"></nav>
+
+<main>
+  <div class="card">
+    <div class="grid" style="grid-template-columns:200px;">
+      <div>
+        <label>Date</label>
+        <input type="date" id="entryDate" required />
+      </div>
+    </div>
+  </div>
+
+  <div id="msg" class="msg hidden"></div>
+
+  <div class="tabs">
+    <button class="active" data-tab="overview">Overview</button>
+    <button data-tab="bookings">Bookings</button>
+    <button data-tab="vehicles">Vehicles</button>
+    <button data-tab="attendance">Attendance</button>
+    <button data-tab="payroll">Payroll</button>
+    <button data-tab="targets">Driver Targets</button>
+    <button data-tab="purchases">Plant Purchases</button>
+  </div>
+
+  <!-- ── Overview ── -->
+  <div class="card tab-panel" id="panel-overview">
+    <h2>Today's Operations</h2>
+    <div class="totals">
+      <div class="tile"><div class="label">Bookings Today</div><div class="value" id="ovBookings">0</div></div>
+      <div class="tile credit"><div class="label">Delivered</div><div class="value" id="ovDelivered">0</div></div>
+      <div class="tile debit"><div class="label">Pending</div><div class="value" id="ovPending">0</div></div>
+      <div class="tile"><div class="label">Trips Running</div><div class="value" id="ovTrips">0</div></div>
+      <div class="tile credit"><div class="label">Staff Present</div><div class="value" id="ovPresent">0</div></div>
+      <div class="tile debit"><div class="label">Staff Absent</div><div class="value" id="ovAbsent">0</div></div>
+    </div>
+    <h2 style="margin-top:18px;">Driver Performance This Month</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Driver</th><th>Delivered (MTD)</th><th>Target</th><th>Progress</th></tr></thead>
+        <tbody id="ovDriverBody"></tbody>
+      </table>
+    </div>
+    <h2 style="margin-top:18px;">Document Expiry Alerts</h2>
+    <div id="ovExpiry"></div>
+  </div>
+
+  <!-- ── Bookings ── -->
+  <div class="card tab-panel" id="panel-bookings" style="display:none;">
+    <h2>New Booking</h2>
+    <form id="bookingForm">
+      <div class="grid">
+        <div><label>Consumer No.</label><input type="text" id="bkConsumerNo" /></div>
+        <div><label>Consumer Name</label><input type="text" id="bkName" required /></div>
+        <div><label>Phone</label><input type="tel" id="bkPhone" /></div>
+        <div><label>Line</label><input type="text" id="bkLine" placeholder="Local / Mainroad" /></div>
+        <div>
+          <label>Product</label>
+          <select id="bkProduct">
+            <option value="14.2 Kg Domestic">14.2 Kg Domestic</option>
+            <option value="19 Kg Commercial">19 Kg Commercial</option>
+            <option value="5 Kg BMCG">5 Kg BMCG</option>
+          </select>
+        </div>
+        <div><label>Qty</label><input type="number" id="bkQty" value="1" min="1" step="1" /></div>
+        <div>
+          <label>Payment</label>
+          <select id="bkPayment">
+            <option value="cash">Cash</option>
+            <option value="online">Online</option>
+            <option value="gpay">G-Pay</option>
+            <option value="credit">Credit</option>
+          </select>
+        </div>
+        <div>
+          <label>Assign Driver</label>
+          <select id="bkDriver"><option value="">— later —</option></select>
+        </div>
+      </div>
+      <div class="row-actions"><button type="submit" class="btn">Add Booking</button></div>
+    </form>
+    <h2 style="margin-top:18px;">Bookings for this Date</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Consumer</th><th>Phone</th><th>Line</th><th>Product</th><th>Qty</th><th>Pay</th><th>Driver</th><th>Status</th><th></th></tr></thead>
+        <tbody id="bookingsBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Vehicles ── -->
+  <div class="card tab-panel" id="panel-vehicles" style="display:none;">
+    <h2>Add / Update Vehicle</h2>
+    <form id="vehicleForm">
+      <div class="grid">
+        <div><label>Vehicle Number</label><input type="text" id="vhNumber" required placeholder="TN-91-R-3889" /></div>
+        <div>
+          <label>Type</label>
+          <select id="vhType">
+            <option value="delivery">Delivery</option>
+            <option value="bulk">Bulk / Plant Lorry</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div><label>Make / Model</label><input type="text" id="vhModel" /></div>
+        <div><label>Insurance Expiry</label><input type="date" id="vhInsurance" /></div>
+        <div><label>FC Expiry</label><input type="date" id="vhFc" /></div>
+        <div><label>Permit Expiry</label><input type="date" id="vhPermit" /></div>
+      </div>
+      <div class="row-actions"><button type="submit" class="btn">Save Vehicle</button></div>
+    </form>
+    <h2 style="margin-top:18px;">Fleet</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Number</th><th>Type</th><th>Model</th><th>Insurance</th><th>FC</th><th>Permit</th><th></th></tr></thead>
+        <tbody id="vehiclesBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Attendance ── -->
+  <div class="card tab-panel" id="panel-attendance" style="display:none;">
+    <h2>Attendance for this Date</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Name</th><th>Role</th><th>Status</th><th>Notes</th><th></th></tr></thead>
+        <tbody id="attendanceBody"></tbody>
+      </table>
+    </div>
+    <div class="row-actions"><button class="btn" id="attSaveBtn">Save Attendance</button></div>
+    <div class="totals" style="margin-top:12px;">
+      <div class="tile credit"><div class="label">Present</div><div class="value" id="attPresent">0</div></div>
+      <div class="tile debit"><div class="label">Absent</div><div class="value" id="attAbsent">0</div></div>
+      <div class="tile"><div class="label">Half Day / Leave</div><div class="value" id="attOther">0</div></div>
+    </div>
+  </div>
+
+  <!-- ── Payroll ── -->
+  <div class="card tab-panel" id="panel-payroll" style="display:none;">
+    <h2>Record Payment</h2>
+    <form id="payrollForm">
+      <div class="grid">
+        <div>
+          <label>Staff</label>
+          <select id="prStaff" required></select>
+        </div>
+        <div>
+          <label>Type</label>
+          <select id="prType">
+            <option value="salary">Salary</option>
+            <option value="advance">Advance</option>
+            <option value="bonus">Bonus</option>
+            <option value="deduction">Deduction</option>
+          </select>
+        </div>
+        <div><label>Amount (₹)</label><input type="number" id="prAmount" step="0.01" required /></div>
+        <div><label>Notes</label><input type="text" id="prNotes" /></div>
+      </div>
+      <div class="row-actions"><button type="submit" class="btn">Record</button></div>
+    </form>
+    <h2 style="margin-top:18px;">This Month per Staff</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Staff</th><th>Salary</th><th>Advance</th><th>Bonus</th><th>Deduction</th><th>Net Paid</th></tr></thead>
+        <tbody id="payrollSummaryBody"></tbody>
+      </table>
+    </div>
+    <h2 style="margin-top:18px;">Entries This Month</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Staff</th><th>Type</th><th>Amount</th><th>Notes</th><th></th></tr></thead>
+        <tbody id="payrollBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Driver Targets ── -->
+  <div class="card tab-panel" id="panel-targets" style="display:none;">
+    <h2>Cylinder Targets for this Month</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Driver</th><th>Target (cylinders)</th><th>Delivered (MTD)</th><th>Progress</th></tr></thead>
+        <tbody id="targetsBody"></tbody>
+      </table>
+    </div>
+    <div class="row-actions"><button class="btn" id="targetsSaveBtn">Save Targets</button></div>
+  </div>
+
+  <!-- ── Plant Purchases ── -->
+  <div class="card tab-panel" id="panel-purchases" style="display:none;">
+    <h2>Record Uplift from Plant</h2>
+    <form id="purchaseForm">
+      <div class="grid">
+        <div><label>Invoice No.</label><input type="text" id="ppInvoice" /></div>
+        <div>
+          <label>Product</label>
+          <select id="ppProduct">
+            <option value="14.2 Kg Domestic">14.2 Kg Domestic</option>
+            <option value="19 Kg Commercial">19 Kg Commercial</option>
+            <option value="5 Kg BMCG">5 Kg BMCG</option>
+          </select>
+        </div>
+        <div><label>Full Received</label><input type="number" id="ppReceived" step="1" value="0" /></div>
+        <div><label>Empties Sent</label><input type="number" id="ppEmpties" step="1" value="0" /></div>
+        <div><label>Invoice Amount (₹)</label><input type="number" id="ppAmount" step="0.01" value="0" /></div>
+        <div><label>Vehicle</label><input type="text" id="ppVehicle" placeholder="TN-91-AW-7452" /></div>
+      </div>
+      <div class="row-actions"><button type="submit" class="btn">Record Purchase</button></div>
+    </form>
+    <h2 style="margin-top:18px;">Purchases This Month</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Invoice</th><th>Product</th><th>Received</th><th>Empties Sent</th><th>Amount</th><th>Vehicle</th><th></th></tr></thead>
+        <tbody id="purchasesBody"></tbody>
+      </table>
+    </div>
+    <div class="totals" style="margin-top:12px;">
+      <div class="tile credit"><div class="label">Cylinders In (MTD)</div><div class="value" id="ppTotalIn">0</div></div>
+      <div class="tile"><div class="label">Purchase Value (MTD)</div><div class="value" id="ppTotalValue">₹0</div></div>
+    </div>
+  </div>
+</main>
+
+<footer class="note">Internal use only — SR Bharat Gas, Kammapuram</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/cloud.js"></script>
+<script src="js/common.js"></script>
+<script src="js/operations.js"></script>
+</body>
+</html>

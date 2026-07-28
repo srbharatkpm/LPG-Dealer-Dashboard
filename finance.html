@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Accounts — LPG Dealer Accounts</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <div>
+    <h1>SR Bharat Gas, Kammapuram</h1>
+    <div class="sub">Accounts Dashboard</div>
+  </div>
+  <div class="who">
+    <span id="whoName"></span>
+    <button class="btn ghost" id="signOutBtn">Sign Out</button>
+  </div>
+</header>
+
+<nav class="dash-nav" id="dashNav"></nav>
+
+<main>
+  <div class="card">
+    <div class="grid" style="grid-template-columns:200px;">
+      <div>
+        <label>Date</label>
+        <input type="date" id="entryDate" required />
+      </div>
+    </div>
+  </div>
+
+  <div id="msg" class="msg hidden"></div>
+
+  <div class="card">
+    <h2>Day at a Glance</h2>
+    <div class="totals">
+      <div class="tile credit"><div class="label">Total Credit (Sales)</div><div class="value" id="dCredit">₹0</div></div>
+      <div class="tile debit"><div class="label">Total Debit (Expenses)</div><div class="value" id="dDebit">₹0</div></div>
+      <div class="tile"><div class="label">Online / G-Pay</div><div class="value" id="dOnline">₹0</div></div>
+      <div class="tile"><div class="label">Bank Deposit</div><div class="value" id="dBank">₹0</div></div>
+      <div class="tile"><div class="label">Balance in Office</div><div class="value" id="dBalance">₹0</div></div>
+      <div class="tile"><div class="label">Cash Counted (Godown)</div><div class="value" id="dCounted">₹0</div></div>
+    </div>
+    <div id="tallyMsg" class="msg hidden" style="margin-top:12px;"></div>
+  </div>
+
+  <div class="card">
+    <h2>Expense Break-up</h2>
+    <div class="totals">
+      <div class="tile debit"><div class="label">Diesel</div><div class="value" id="xDiesel">₹0</div></div>
+      <div class="tile debit"><div class="label">Refill Commission</div><div class="value" id="xRefill">₹0</div></div>
+      <div class="tile debit"><div class="label">Local</div><div class="value" id="xLocal">₹0</div></div>
+      <div class="tile debit"><div class="label">Vehicle</div><div class="value" id="xVehicle">₹0</div></div>
+      <div class="tile debit"><div class="label">Salary &amp; Advance</div><div class="value" id="xSalary">₹0</div></div>
+      <div class="tile debit"><div class="label">Admin / Other</div><div class="value" id="xAdmin">₹0</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Month so far</h2>
+    <div class="totals">
+      <div class="tile credit"><div class="label">Revenue (MTD)</div><div class="value" id="mRevenue">₹0</div></div>
+      <div class="tile debit"><div class="label">Expenses (MTD)</div><div class="value" id="mExpenses">₹0</div></div>
+      <div class="tile"><div class="label">Net (MTD)</div><div class="value" id="mNet">₹0</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Credit Customers — Outstanding</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Consumer No.</th><th>Name</th><th>Phone</th><th>Balance Owed</th></tr></thead>
+        <tbody id="creditBody"></tbody>
+      </table>
+    </div>
+    <div class="totals" style="margin-top:12px;">
+      <div class="tile debit"><div class="label">Total Outstanding</div><div class="value" id="creditTotal">₹0</div></div>
+    </div>
+  </div>
+</main>
+
+<footer class="note">Internal use only — SR Bharat Gas, Kammapuram</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/cloud.js"></script>
+<script src="js/common.js"></script>
+<script src="js/finance.js"></script>
+</body>
+</html>

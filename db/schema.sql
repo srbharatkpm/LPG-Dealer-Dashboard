@@ -535,6 +535,174 @@ create policy broadcast_recipients_all on broadcast_recipients for all
   with check (is_office_role());
 
 -- =========================================================
+-- 6b. Operations: vehicles, attendance, payroll, driver targets
+-- =========================================================
+
+-- Delivery vehicles master list
+create table if not exists vehicles (
+  id             uuid primary key default gen_random_uuid(),
+  vehicle_number text not null unique,
+  vehicle_type   text not null default 'delivery'
+                 check (vehicle_type in ('delivery', 'bulk', 'other')),
+  make_model     text,
+  insurance_expiry date,
+  fc_expiry      date,          -- fitness certificate
+  permit_expiry  date,
+  active         boolean not null default true,
+  notes          text,
+  created_by     uuid references profiles(id),
+  created_at     timestamptz not null default now()
+);
+
+-- Staff attendance — one row per person per day
+create table if not exists staff_attendance (
+  id          uuid primary key default gen_random_uuid(),
+  entry_date  date not null default current_date,
+  staff_id    uuid not null references profiles(id),
+  status      text not null default 'present'
+              check (status in ('present', 'absent', 'half_day', 'leave')),
+  notes       text,
+  created_by  uuid references profiles(id),
+  created_at  timestamptz not null default now(),
+  unique (entry_date, staff_id)
+);
+
+-- Payroll — salary payments, advances and deductions per staff member.
+-- Monthly net = sum(salary) - sum(advance) - sum(deduction) + sum(bonus)
+create table if not exists payroll_entries (
+  id          uuid primary key default gen_random_uuid(),
+  entry_date  date not null default current_date,
+  staff_id    uuid not null references profiles(id),
+  type        text not null
+              check (type in ('salary', 'advance', 'bonus', 'deduction')),
+  amount      numeric not null default 0,
+  notes       text,
+  created_by  uuid references profiles(id),
+  created_at  timestamptz not null default now()
+);
+
+-- Per-driver delivery targets (cylinders per month)
+create table if not exists driver_targets (
+  id           uuid primary key default gen_random_uuid(),
+  month_start  date not null,   -- first day of the month
+  driver_id    uuid not null references profiles(id),
+  target_qty   numeric not null default 0,
+  notes        text,
+  created_by   uuid references profiles(id),
+  created_at   timestamptz not null default now(),
+  unique (month_start, driver_id)
+);
+
+alter table vehicles enable row level security;
+alter table staff_attendance enable row level security;
+alter table payroll_entries enable row level security;
+alter table driver_targets enable row level security;
+
+-- vehicles / attendance / targets: ops manage, office+staff view.
+-- payroll is money — office roles only, staff cannot read each other's pay.
+drop policy if exists vehicles_select on vehicles;
+create policy vehicles_select on vehicles for select
+  using (auth.uid() is not null);
+drop policy if exists vehicles_write on vehicles;
+create policy vehicles_write on vehicles for all
+  using (is_ops_role())
+  with check (is_ops_role());
+
+drop policy if exists staff_attendance_select on staff_attendance;
+create policy staff_attendance_select on staff_attendance for select
+  using (staff_id = auth.uid() or is_office_role() or current_role_name() = 'staff');
+drop policy if exists staff_attendance_write on staff_attendance;
+create policy staff_attendance_write on staff_attendance for all
+  using (is_ops_role() or current_role_name() = 'staff')
+  with check (is_ops_role() or current_role_name() = 'staff');
+
+drop policy if exists payroll_entries_select on payroll_entries;
+create policy payroll_entries_select on payroll_entries for select
+  using (staff_id = auth.uid() or is_office_role());
+drop policy if exists payroll_entries_write on payroll_entries;
+create policy payroll_entries_write on payroll_entries for all
+  using (is_office_role())
+  with check (is_office_role());
+
+drop policy if exists driver_targets_select on driver_targets;
+create policy driver_targets_select on driver_targets for select
+  using (driver_id = auth.uid() or is_office_role());
+drop policy if exists driver_targets_write on driver_targets;
+create policy driver_targets_write on driver_targets for all
+  using (is_ops_role())
+  with check (is_ops_role());
+
+-- =========================================================
+-- 6c. Refill bookings — the front door of the daily workflow.
+--     Office records a booking; it gets assigned to a driver's trip
+--     and marked delivered/cancelled.
+-- =========================================================
+create table if not exists bookings (
+  id            uuid primary key default gen_random_uuid(),
+  booking_date  date not null default current_date,
+  consumer_no   text,
+  consumer_name text not null,
+  phone         text,
+  line          text,
+  product       text not null default '14.2 Kg Domestic',
+  qty           numeric not null default 1,
+  payment_mode  text not null default 'cash'
+                check (payment_mode in ('cash', 'online', 'gpay', 'credit')),
+  status        text not null default 'booked'
+                check (status in ('booked', 'assigned', 'delivered', 'cancelled')),
+  assigned_driver uuid references profiles(id),
+  delivered_date  date,
+  notes         text,
+  created_by    uuid references profiles(id),
+  created_at    timestamptz not null default now()
+);
+
+-- =========================================================
+-- 6d. Plant purchases (uplift from the bottling plant) — inventory
+--     inflow: full cylinders received against empties sent.
+-- =========================================================
+create table if not exists plant_purchases (
+  id             uuid primary key default gen_random_uuid(),
+  purchase_date  date not null default current_date,
+  invoice_no     text,
+  product        text not null,
+  qty_received   numeric not null default 0,  -- full cylinders in
+  empties_sent   numeric not null default 0,  -- empty cylinders out
+  amount         numeric not null default 0,  -- invoice value
+  vehicle_number text,                        -- lorry that fetched the load
+  notes          text,
+  created_by     uuid references profiles(id),
+  created_at     timestamptz not null default now()
+);
+
+alter table bookings enable row level security;
+alter table plant_purchases enable row level security;
+
+-- bookings: office manages; drivers see and can update the ones
+-- assigned to them (mark delivered on the road)
+drop policy if exists bookings_select on bookings;
+create policy bookings_select on bookings for select
+  using (is_office_role() or assigned_driver = auth.uid());
+drop policy if exists bookings_write on bookings;
+create policy bookings_write on bookings for insert
+  with check (is_office_role());
+drop policy if exists bookings_update on bookings;
+create policy bookings_update on bookings for update
+  using (is_office_role() or assigned_driver = auth.uid());
+drop policy if exists bookings_delete on bookings;
+create policy bookings_delete on bookings for delete
+  using (is_office_role());
+
+-- plant purchases: office + godown staff
+drop policy if exists plant_purchases_select on plant_purchases;
+create policy plant_purchases_select on plant_purchases for select
+  using (is_office_role() or current_role_name() = 'staff');
+drop policy if exists plant_purchases_write on plant_purchases;
+create policy plant_purchases_write on plant_purchases for all
+  using (is_office_role() or current_role_name() = 'staff')
+  with check (is_office_role() or current_role_name() = 'staff');
+
+-- =========================================================
 -- 7. Table privileges (GRANTs)
 --
 -- GRANT and RLS are two separate gates: Postgres checks the table

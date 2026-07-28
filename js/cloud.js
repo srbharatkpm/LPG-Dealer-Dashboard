@@ -145,18 +145,108 @@ const lpgCloud = (() => {
     return data;
   }
 
+  // ---- offline write cache -------------------------------------------
+  // If a save fails because the device is offline (patchy mobile signal
+  // at the godown / on delivery rounds), the write is kept in
+  // localStorage and replayed into the real tables as soon as the
+  // connection returns. Only inserts/upserts queue — updates and
+  // deletes are rare on the road and fail loudly instead.
+  const QUEUE_KEY = "lpg_offline_queue";
+
+  function isNetworkError(err) {
+    return (
+      err instanceof TypeError ||
+      /failed to fetch|network|load failed/i.test(String(err && err.message))
+    );
+  }
+
+  function readQueue() {
+    try {
+      return JSON.parse(localStorage.getItem(QUEUE_KEY) || "[]");
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function writeQueue(q) {
+    localStorage.setItem(QUEUE_KEY, JSON.stringify(q));
+  }
+
+  function enqueue(op, table, rows, onConflict) {
+    const q = readQueue();
+    q.push({ op, table, rows, onConflict: onConflict || null, ts: Date.now() });
+    writeQueue(q);
+  }
+
+  let flushing = false;
+  async function flushQueue() {
+    if (flushing) return;
+    const q = readQueue();
+    if (!q.length) return;
+    flushing = true;
+    try {
+      const sb = client_();
+      while (q.length) {
+        const item = q[0];
+        const query =
+          item.op === "upsert"
+            ? sb.from(item.table).upsert(item.rows, { onConflict: item.onConflict })
+            : sb.from(item.table).insert(item.rows);
+        const { error } = await query;
+        // Data errors (RLS, constraint) will never succeed on retry —
+        // drop those rather than jamming the queue forever. Network
+        // errors keep the item for the next attempt.
+        if (error && isNetworkError(error)) break;
+        q.shift();
+        writeQueue(q);
+      }
+    } catch (err) {
+      if (!isNetworkError(err)) {
+        q.shift();
+        writeQueue(q);
+      }
+    } finally {
+      flushing = false;
+    }
+  }
+
+  window.addEventListener("online", flushQueue);
+  // also try shortly after page load, once a session likely exists
+  setTimeout(() => flushQueue().catch(() => {}), 4000);
+
+  function pendingOfflineCount() {
+    return readQueue().length;
+  }
+  // --------------------------------------------------------------------
+
   async function insert(table, rows) {
     const sb = client_();
-    const { data, error } = await sb.from(table).insert(rows).select();
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await sb.from(table).insert(rows).select();
+      if (error) throw error;
+      return data;
+    } catch (err) {
+      if (isNetworkError(err)) {
+        enqueue("insert", table, rows, null);
+        return rows; // treated as saved; it syncs when back online
+      }
+      throw err;
+    }
   }
 
   async function upsert(table, rows, onConflict) {
     const sb = client_();
-    const { data, error } = await sb.from(table).upsert(rows, { onConflict }).select();
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await sb.from(table).upsert(rows, { onConflict }).select();
+      if (error) throw error;
+      return data;
+    } catch (err) {
+      if (isNetworkError(err)) {
+        enqueue("upsert", table, rows, onConflict);
+        return rows;
+      }
+      throw err;
+    }
   }
 
   async function update(table, id, patch) {
@@ -191,5 +281,9 @@ const lpgCloud = (() => {
     insert,
     upsert,
     update,
+    remove,
+    callFunction,
+    flushQueue,
+    pendingOfflineCount,
   };
 })();

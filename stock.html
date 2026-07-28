@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Godown Stock — LPG Dealer Accounts</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <div>
+    <h1>SR Bharat Gas, Kammapuram</h1>
+    <div class="sub">Godown Stock</div>
+  </div>
+  <div class="who">
+    <span id="whoName"></span>
+    <button class="btn ghost" id="signOutBtn">Sign Out</button>
+  </div>
+</header>
+
+<nav class="dash-nav" id="dashNav"></nav>
+
+<main>
+  <div class="card">
+    <div class="grid" style="grid-template-columns:200px;">
+      <div>
+        <label>Date</label>
+        <input type="date" id="entryDate" required />
+      </div>
+    </div>
+  </div>
+
+  <div id="msg" class="msg hidden"></div>
+
+  <div class="card">
+    <h2>Stock on this Date</h2>
+    <div class="stock-grid" id="stockGrid"></div>
+    <p id="stockEmpty" style="display:none;font-size:13px;color:var(--muted);">
+      No stock has been entered for this date yet — the Godown Incharge records it on the Godown Entry page.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>Sent Out on Vehicles</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Vehicle</th><th>Product</th><th>Qty</th></tr></thead>
+        <tbody id="vehicleBody"></tbody>
+      </table>
+    </div>
+    <div class="totals" style="margin-top:12px;">
+      <div class="tile"><div class="label">Total Sent Out</div><div class="value" id="sentTotal">0</div></div>
+    </div>
+  </div>
+</main>
+
+<footer class="note">Internal use only — SR Bharat Gas, Kammapuram</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/cloud.js"></script>
+<script src="js/common.js"></script>
+<script src="js/stock.js"></script>
+</body>
+</html>

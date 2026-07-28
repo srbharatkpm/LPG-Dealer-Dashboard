@@ -16,6 +16,12 @@ Run the whole of [`db/schema.sql`](db/schema.sql) in the
 [SQL Editor](https://supabase.com/dashboard/project/gaacsvsadghhhsoiraxc/sql/new).
 It is safe to re-run: every statement is `if not exists` / `create or replace`.
 
+**Re-run it after every schema change** — the ERP build added
+`vehicles`, `staff_attendance`, `payroll_entries`, `driver_targets`,
+`bookings` and `plant_purchases`, which only exist once the file has
+been run again. The blanket GRANT block at the end covers new tables
+automatically via `alter default privileges`.
+
 That file also contains the `grant ...` block at the end. Without it every
 query fails with `permission denied for table X` even for a correctly
 signed-in user — Postgres checks table privileges *before* it evaluates
