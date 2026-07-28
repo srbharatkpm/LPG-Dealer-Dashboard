@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Daily Sheet — LPG Dealer Accounts</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="css/style.css" />
+<style>
+  .paper h2 { text-align: center; letter-spacing: 0.06em; }
+  .paper table { font-size: 12px; }
+  .paper th, .paper td { padding: 4px 6px; }
+  .paper td input { padding: 3px 5px; font-size: 12px; min-width: 44px; }
+  .paper .tot td { font-weight: 700; background: #f2f6fa; }
+  .amt { text-align: right; font-variant-numeric: tabular-nums; }
+  @media print {
+    header.topbar, nav.dash-nav, .no-print, footer.note { display: none !important; }
+    body { background: #fff; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div>
+    <h1>SR BHARAT GAS — KAMMAPURAM</h1>
+    <div class="sub">Delivery Boy — Daily Settlement Sheet</div>
+  </div>
+  <div class="who">
+    <span id="whoName"></span>
+    <button class="btn ghost" id="signOutBtn">Sign Out</button>
+  </div>
+</header>
+
+<nav class="dash-nav">
+  <a href="delivery.html">Trip Sheet</a>
+  <a href="driversheet.html" class="on" aria-current="page">Daily Sheet</a>
+</nav>
+
+<main class="paper" style="max-width:1080px;">
+  <div class="card no-print">
+    <div class="grid" style="grid-template-columns:170px 1fr 1fr;align-items:end;">
+      <div><label>Date</label><input type="date" id="entryDate" required /></div>
+      <div><label>Vehicle #</label><input type="text" id="shVehicle" placeholder="TN-91-R-3889" /></div>
+      <div><label>Line</label><input type="text" id="shLine" placeholder="Local / Mainroad" /></div>
+    </div>
+  </div>
+
+  <div id="msg" class="msg hidden"></div>
+  <div id="matchMsg" class="msg hidden"></div>
+
+  <div class="card">
+    <h2>Cylinder Stock Movement</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th rowspan="2">Product</th><th rowspan="2">Total Upload</th>
+            <th colspan="2">SV / ADD</th><th colspan="2">Return</th>
+            <th rowspan="2">Delivered</th>
+          </tr>
+          <tr><th>Load</th><th>Empty</th><th>Load</th><th>Empty</th></tr>
+        </thead>
+        <tbody id="stockBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="sheet" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;">
+    <div class="card">
+      <h2>Total Sale</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Item</th><th>Qty</th><th>× Rate</th><th class="amt">= Amount</th></tr></thead>
+          <tbody id="saleBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h2>Total Debits</h2>
+        <div class="table-wrap">
+          <table><tbody id="debitBody"></tbody></table>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Cash Denomination</h2>
+        <div class="table-wrap">
+          <table><tbody id="denomBody"></tbody></table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="totals">
+      <div class="tile credit"><div class="label">Total Amount (Sale)</div><div class="value" id="tSale">₹0</div></div>
+      <div class="tile debit"><div class="label">Total Debit</div><div class="value" id="tDebit">₹0</div></div>
+      <div class="tile"><div class="label">Cash To Hand Over</div><div class="value" id="tExpected">₹0</div></div>
+      <div class="tile"><div class="label">Cash Counted</div><div class="value" id="tCounted">₹0</div></div>
+    </div>
+    <div class="row-actions no-print" style="margin-top:12px;">
+      <button class="btn" id="saveBtn">Save</button>
+      <button class="btn secondary" id="submitBtn">Submit to Office</button>
+      <button class="btn secondary" id="printBtn" type="button">Print</button>
+      <span id="submitState" class="pill amber" style="align-self:center;">not submitted</span>
+    </div>
+  </div>
+</main>
+
+<footer class="note">Godown Incharge Sign ____________ &nbsp;&nbsp; Cash Confirmed Person Sign ____________ &nbsp;&nbsp; Driver's Sign ____________</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/cloud.js"></script>
+<script src="js/common.js"></script>
+<script src="js/sheetmath.js"></script>
+<script src="js/driversheet.js"></script>
+</body>
+</html>

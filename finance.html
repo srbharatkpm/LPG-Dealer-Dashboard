@@ -68,6 +68,22 @@
   </div>
 
   <div class="card">
+    <h2>Driver Daily Sheets — Cumulative</h2>
+    <p style="font-size:13px;color:var(--muted);margin-top:-6px;">
+      Every delivery boy's submitted settlement sheet for this date, combined into the day's cumulative account.
+    </p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Driver</th><th>Status</th><th>Delivered (qty)</th><th>Total Sale</th>
+          <th>Total Debits</th><th>Cash To Hand Over</th><th>Cash Counted</th><th>Tally</th>
+        </tr></thead>
+        <tbody id="driverSheetsBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
     <h2>Credit Customers — Outstanding</h2>
     <div class="table-wrap">
       <table>
@@ -87,6 +103,7 @@
 <script src="js/config.js"></script>
 <script src="js/cloud.js"></script>
 <script src="js/common.js"></script>
+<script src="js/sheetmath.js"></script>
 <script src="js/finance.js"></script>
 </body>
 </html>

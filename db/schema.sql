@@ -767,6 +767,39 @@ create policy day_sheets_all on day_sheets for all
   with check (is_office_role());
 
 -- =========================================================
+-- 6f. driver_sheets — each delivery boy's daily settlement sheet, the
+--     digital twin of the printed "SR Bharat Gas - Kammapuram" godown
+--     page: stock movement, per-product sale, debits, denominations.
+--     One JSONB document per driver per date; the driver edits and
+--     submits it daily, the office reads every driver's sheet and
+--     builds the cumulative account from them.
+-- =========================================================
+create table if not exists driver_sheets (
+  id          uuid primary key default gen_random_uuid(),
+  driver_id   uuid not null references profiles(id),
+  sheet_date  date not null default current_date,
+  driver_name text,
+  data        jsonb not null default '{}'::jsonb,
+  submitted   boolean not null default false,
+  updated_at  timestamptz not null default now(),
+  unique (driver_id, sheet_date)
+);
+
+alter table driver_sheets enable row level security;
+
+drop policy if exists driver_sheets_select on driver_sheets;
+create policy driver_sheets_select on driver_sheets for select
+  using (driver_id = auth.uid() or is_office_role());
+
+drop policy if exists driver_sheets_insert on driver_sheets;
+create policy driver_sheets_insert on driver_sheets for insert
+  with check (driver_id = auth.uid() and current_role_name() = 'driver');
+
+drop policy if exists driver_sheets_update on driver_sheets;
+create policy driver_sheets_update on driver_sheets for update
+  using (driver_id = auth.uid() or is_office_role());
+
+-- =========================================================
 -- 7. Table privileges (GRANTs)
 --
 -- GRANT and RLS are two separate gates: Postgres checks the table

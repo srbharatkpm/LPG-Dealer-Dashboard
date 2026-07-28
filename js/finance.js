@@ -101,6 +101,45 @@ async function loadFinanceDash() {
   document.getElementById("mExpenses").textContent = fmt(mExpense);
   document.getElementById("mNet").textContent = fmt(mRevenue - mExpense);
 
+  // driver daily sheets — cumulative account across all delivery boys,
+  // using the same math the driver's own page uses (js/sheetmath.js)
+  const sheets = await lpgCloud.select("driver_sheets", { eq: { sheet_date: date } });
+  const dsBody = document.getElementById("driverSheetsBody");
+  const cum = { delivered: 0, sale: 0, debits: 0, expectedCash: 0, counted: 0 };
+  dsBody.innerHTML = sheets
+    .map((s) => {
+      const t = dsTotals(s.data || {});
+      cum.delivered += t.delivered;
+      cum.sale += t.sale;
+      cum.debits += t.debits;
+      cum.expectedCash += t.expectedCash;
+      cum.counted += t.counted;
+      const ok = Math.abs(t.expectedCash - t.counted) <= 0.5;
+      return (
+        "<tr><td>" + escapeHtml(s.driver_name || "—") + "</td>" +
+        '<td><span class="pill ' + (s.submitted ? "green" : "amber") + '">' +
+        (s.submitted ? "submitted" : "draft") + "</span></td>" +
+        "<td>" + qty(t.delivered) + "</td>" +
+        "<td>" + fmt(t.sale) + "</td>" +
+        "<td>" + fmt(t.debits) + "</td>" +
+        "<td>" + fmt(t.expectedCash) + "</td>" +
+        "<td>" + fmt(t.counted) + "</td>" +
+        '<td><span class="pill ' + (ok ? "green" : "amber") + '">' + (ok ? "tallied" : "short/over") + "</span></td></tr>"
+      );
+    })
+    .join("");
+  if (sheets.length) {
+    dsBody.innerHTML +=
+      '<tr style="font-weight:700;background:#f2f6fa;"><td>All Drivers (Cumulative)</td><td></td>' +
+      "<td>" + qty(cum.delivered) + "</td>" +
+      "<td>" + fmt(cum.sale) + "</td>" +
+      "<td>" + fmt(cum.debits) + "</td>" +
+      "<td>" + fmt(cum.expectedCash) + "</td>" +
+      "<td>" + fmt(cum.counted) + "</td><td></td></tr>";
+  } else {
+    dsBody.innerHTML = '<tr><td colspan="8" style="color:var(--muted);">No driver sheets for this date yet.</td></tr>';
+  }
+
   // credit outstanding
   const balances = {};
   txns.forEach((t) => {
