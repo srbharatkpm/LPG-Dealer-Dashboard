@@ -464,3 +464,43 @@ drop policy if exists broadcast_recipients_all on broadcast_recipients;
 create policy broadcast_recipients_all on broadcast_recipients for all
   using (is_office_role())
   with check (is_office_role());
+
+-- =========================================================
+-- 7. Table privileges (GRANTs)
+--
+-- GRANT and RLS are two separate gates: Postgres checks the table
+-- privilege FIRST, and only then evaluates row policies. Supabase does
+-- not always apply its default privileges to tables created this way,
+-- which shows up as "permission denied for table X" (SQLSTATE 42501)
+-- even for a correctly signed-in user, before any policy runs.
+--
+-- Granting to `authenticated` only, deliberately: every policy above
+-- requires auth.uid(), so `anon` has no reachable rows anyway and
+-- giving it table access would be pointless surface area. Sign-up and
+-- sign-in go through the auth API, not PostgREST, so they are
+-- unaffected by these grants.
+-- =========================================================
+grant usage on schema public to authenticated;
+
+grant select, insert, update, delete on
+  profiles,
+  delivery_trips,
+  delivery_entries,
+  godown_stock,
+  godown_vehicle_sales,
+  godown_debits,
+  godown_cash_count,
+  product_rates,
+  sales_targets,
+  credit_customers,
+  credit_transactions,
+  accounts_daily,
+  customers,
+  whatsapp_templates,
+  whatsapp_broadcasts,
+  broadcast_recipients
+to authenticated;
+
+grant execute on function current_role_name() to authenticated;
+grant execute on function is_office_role() to authenticated;
+grant execute on function is_ops_role() to authenticated;
