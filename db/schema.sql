@@ -93,6 +93,14 @@ security definer
 set search_path = public
 as $$
 begin
+  -- Rows created by the owner through the create-team-user edge function
+  -- arrive as service_role and already carry their intended role, so let
+  -- them through — except that owner is never handed out this way.
+  if current_user = 'service_role' then
+    if new.role = 'owner' then new.role := 'pending'; end if;
+    return new;
+  end if;
+
   if not exists (select 1 from profiles) then
     new.role := 'owner';
   else
@@ -117,8 +125,17 @@ security definer
 set search_path = public
 as $$
 begin
-  if new.role is distinct from old.role and current_role_name() <> 'owner' then
-    raise exception 'Only the owner can change a role';
+  if current_user = 'service_role' then return new; end if;
+
+  if new.role is distinct from old.role then
+    if current_role_name() not in ('owner', 'manager') then
+      raise exception 'Only the owner or a manager can change a role';
+    end if;
+    -- a manager may manage everyone except the owner account itself,
+    -- so they cannot demote the owner and take over
+    if old.role = 'owner' and current_role_name() <> 'owner' then
+      raise exception 'The owner account can only be changed by the owner';
+    end if;
   end if;
   return new;
 end;

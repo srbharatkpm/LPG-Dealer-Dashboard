@@ -28,6 +28,22 @@ function hideMsg() {
   msg.className = "msg hidden";
 }
 
+// Staff logins are created by the owner against a mobile number, which is
+// stored as a synthetic email (9876543210@srbharatgas.local) because
+// Supabase Auth needs an email identifier. So the sign-in box accepts
+// either: 10 digits are treated as a mobile, anything else as an email.
+const STAFF_EMAIL_DOMAIN = "srbharatgas.local";
+
+function toLoginEmail(value) {
+  const v = String(value || "").trim();
+  if (v.indexOf("@") !== -1) return v;
+  const digits = v.replace(/\D/g, "");
+  if (digits.length === 10 || digits.length === 12) {
+    return digits.slice(-10) + "@" + STAFF_EMAIL_DOMAIN;
+  }
+  return v;
+}
+
 function routeForRole(role) {
   if (role === "owner" || role === "manager" || role === "accounts") return "accounts.html";
   if (role === "staff") return "godown.html";
@@ -57,7 +73,7 @@ function handleProfile(profile) {
 signInForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   hideMsg();
-  const email = document.getElementById("siEmail").value.trim();
+  const email = toLoginEmail(document.getElementById("siEmail").value);
   const password = document.getElementById("siPassword").value;
   const btn = document.getElementById("siBtn");
   btn.disabled = true;

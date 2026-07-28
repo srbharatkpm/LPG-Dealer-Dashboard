@@ -443,14 +443,49 @@ async function loadTeam() {
   });
 }
 
+// ---------- Create a staff login (owner only) ----------
+document.getElementById("createUserForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const out = document.getElementById("cuMsg");
+  const btn = document.getElementById("cuBtn");
+  out.className = "msg hidden";
+  btn.disabled = true;
+  try {
+    const mobile = document.getElementById("cuMobile").value.replace(/\D/g, "").slice(-10);
+    if (mobile.length !== 10) throw new Error("Mobile number must be 10 digits.");
+    const password = document.getElementById("cuPassword").value;
+
+    await lpgCloud.callFunction("create-team-user", {
+      full_name: document.getElementById("cuName").value.trim(),
+      mobile,
+      role: document.getElementById("cuRole").value,
+      password,
+      vehicle_number: document.getElementById("cuVehicle").value.trim(),
+      line: document.getElementById("cuLine").value.trim(),
+    });
+
+    out.className = "msg ok";
+    out.textContent = `Login created. Tell them: mobile ${mobile}, password ${password}.`;
+    document.getElementById("createUserForm").reset();
+    document.getElementById("cuPassword").value = "lpg@1234";
+    await loadTeam();
+  } catch (err) {
+    out.className = "msg error";
+    out.textContent = err.message || "Could not create the login.";
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 // ---------- Role-based visibility ----------
+// Owner and Manager both get the full set of tabs. What still separates
+// them is enforced in the database, not here: only the owner can touch
+// the owner account itself, and the owner role is pinned to one email.
 function applyRoleVisibility(role) {
-  const isOwner = role === "owner";
-  const isOwnerOrManager = role === "owner" || role === "manager";
-  document.getElementById("tabTargets").style.display = isOwnerOrManager ? "" : "none";
-  document.getElementById("tabBroadcast").style.display = isOwnerOrManager ? "" : "none";
-  document.getElementById("tabPL").style.display = isOwner ? "" : "none";
-  document.getElementById("tabTeam").style.display = isOwner ? "" : "none";
+  const full = role === "owner" || role === "manager";
+  ["tabTargets", "tabBroadcast", "tabPL", "tabTeam"].forEach((id) => {
+    document.getElementById(id).style.display = full ? "" : "none";
+  });
 }
 
 // ---------- init ----------
@@ -466,8 +501,6 @@ async function loadAllForDate() {
   if (profile.role === "owner" || profile.role === "manager") {
     await loadTargets();
     await loadBroadcastTab();
-  }
-  if (profile.role === "owner") {
     await loadPL();
     await loadTeam();
   }

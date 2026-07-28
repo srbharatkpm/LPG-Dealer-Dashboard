@@ -268,7 +268,32 @@
   </div>
 
   <div class="card tab-panel" id="panel-team" style="display:none;">
-    <h2>Team &amp; Roles</h2>
+    <h2>Create Login</h2>
+    <p style="font-size:13px;color:var(--muted);margin-top:-6px;">
+      Staff sign in with their <strong>mobile number</strong> and the password you set here — tell them both.
+    </p>
+    <form id="createUserForm">
+      <div class="grid">
+        <div><label>Full Name</label><input type="text" id="cuName" required /></div>
+        <div><label>Mobile Number (10 digits)</label><input type="tel" id="cuMobile" required placeholder="9876543210" /></div>
+        <div>
+          <label>Role</label>
+          <select id="cuRole" required>
+            <option value="driver">Delivery Boy</option>
+            <option value="staff">Staff (Godown Incharge)</option>
+            <option value="accounts">Accounts</option>
+            <option value="manager">Manager</option>
+          </select>
+        </div>
+        <div><label>Password</label><input type="text" id="cuPassword" required value="lpg@1234" /></div>
+        <div><label>Vehicle # (drivers)</label><input type="text" id="cuVehicle" placeholder="TN-91-R-3889" /></div>
+        <div><label>Line (drivers)</label><input type="text" id="cuLine" placeholder="Local / Mainroad" /></div>
+      </div>
+      <div class="row-actions"><button type="submit" class="btn" id="cuBtn">Create Login</button></div>
+    </form>
+    <div id="cuMsg" class="msg hidden"></div>
+
+    <h2 style="margin-top:22px;">Team &amp; Roles</h2>
     <div class="table-wrap">
       <table>
         <thead><tr><th>Name</th><th>Phone</th><th>Vehicle/Line</th><th>Role</th><th></th></tr></thead>
