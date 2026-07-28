@@ -45,7 +45,7 @@ function toLoginEmail(value) {
 }
 
 function routeForRole(role) {
-  if (role === "owner" || role === "manager" || role === "accounts") return "accounts.html";
+  if (role === "owner" || role === "manager" || role === "accounts") return "dashboard.html";
   if (role === "staff") return "godown.html";
   if (role === "driver") return "delivery.html";
   return null; // 'pending' (or anything unrecognised) has nowhere to go yet

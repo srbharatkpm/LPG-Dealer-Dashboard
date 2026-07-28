@@ -445,14 +445,56 @@ create table if not exists customers (
   id           uuid primary key default gen_random_uuid(),
   consumer_no  text,
   name         text not null,
-  phone        text not null,   -- E.164 without '+', e.g. 91XXXXXXXXXX (WhatsApp Cloud API format)
+  phone        text not null default '',  -- E.164 without '+', e.g. 91XXXXXXXXXX; may be blank in BPCL data
   line         text,
   address      text,
   opted_out    boolean not null default false,
   created_by   uuid references profiles(id),
-  created_at   timestamptz not null default now(),
-  unique (phone)
+  created_at   timestamptz not null default now()
 );
+
+-- BPCL eConnect "List Of Consumers" fields. Identity for imports is the
+-- BPCL consumer number, NOT the phone — in the real export thousands of
+-- consumers share a family phone or have none at all.
+alter table customers add column if not exists alt_phone text;
+alter table customers add column if not exists category text;          -- Domestic / Commercial
+alter table customers add column if not exists last_delivery date;
+alter table customers add column if not exists subsidy_elig int;       -- quota eligible this year
+alter table customers add column if not exists subsidy_delv int;       -- quota delivered this year
+alter table customers add column if not exists kyc_done boolean;
+alter table customers add column if not exists no_of_cylinders int;
+alter table customers add column if not exists blue_book text;
+
+-- older databases had unique(phone); the BPCL master breaks that
+alter table customers drop constraint if exists customers_phone_key;
+create unique index if not exists customers_consumer_no_key
+  on customers (consumer_no) where consumer_no is not null and consumer_no <> '';
+
+-- set true by importing the eConnect "EKYC Pending Customers" report;
+-- cleared per-customer from the Follow-ups page once their eKYC is done
+alter table customers add column if not exists ekyc_pending boolean not null default false;
+
+-- =========================================================
+-- 5b. followup_logs — office staff call log against consumers
+--     (refill chase + eKYC chase). One row per call/contact attempt.
+-- =========================================================
+create table if not exists followup_logs (
+  id           uuid primary key default gen_random_uuid(),
+  consumer_no  text not null,
+  followup_type text not null default 'refill' check (followup_type in ('refill', 'ekyc')),
+  entry_date   date not null default current_date,
+  outcome      text not null check (outcome in ('booked', 'no_answer', 'call_later', 'not_interested', 'done')),
+  notes        text,
+  created_by   uuid references profiles(id),
+  created_at   timestamptz not null default now()
+);
+
+alter table followup_logs enable row level security;
+
+drop policy if exists followup_logs_all on followup_logs;
+create policy followup_logs_all on followup_logs for all
+  using (is_office_role())
+  with check (is_office_role());
 
 alter table customers enable row level security;
 

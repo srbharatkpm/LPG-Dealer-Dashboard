@@ -219,6 +219,26 @@ const lpgCloud = (() => {
   }
   // --------------------------------------------------------------------
 
+  // Pages through a large table 1000 rows at a time (PostgREST caps a
+  // single response at 1000). Needed for `customers` — the BPCL master
+  // has ~25k consumers, and a plain select would silently truncate.
+  async function selectAll(table, opts = {}) {
+    const sb = client_();
+    const page = 1000;
+    let from = 0;
+    const all = [];
+    for (;;) {
+      let q = sb.from(table).select(opts.columns || "*").range(from, from + page - 1);
+      if (opts.eq) for (const [c, v] of Object.entries(opts.eq)) q = q.eq(c, v);
+      const { data, error } = await q;
+      if (error) throw error;
+      all.push.apply(all, data);
+      if (data.length < page) break;
+      from += page;
+    }
+    return all;
+  }
+
   async function insert(table, rows) {
     const sb = client_();
     try {
@@ -278,6 +298,7 @@ const lpgCloud = (() => {
     getProfile,
     requireRole,
     select,
+    selectAll,
     insert,
     upsert,
     update,

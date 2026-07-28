@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Follow-ups — LPG Dealer Accounts</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="css/style.css" />
+<style>
+  .tierbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .tierbar button {
+    border: 1px solid var(--border);
+    background: #fff;
+    border-radius: 18px;
+    padding: 7px 13px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .tierbar button.on { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .tier-1 { color: var(--red); font-weight: 700; }
+  .tier-2 { color: #a8641a; font-weight: 600; }
+  .tier-3 { color: var(--blue-dark); }
+  .tier-4 { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div>
+    <h1>SR Bharat Gas, Kammapuram</h1>
+    <div class="sub">Office Follow-ups</div>
+  </div>
+  <div class="who">
+    <span id="whoName"></span>
+    <button class="btn ghost" id="signOutBtn">Sign Out</button>
+  </div>
+</header>
+
+<nav class="dash-nav" id="dashNav"></nav>
+
+<main style="max-width:1180px;">
+  <div class="card" style="display:none;">
+    <input type="date" id="entryDate" />
+  </div>
+
+  <div id="msg" class="msg hidden"></div>
+
+  <div class="tabs">
+    <button class="active" data-tab="refill">Refill Follow-up</button>
+    <button data-tab="ekyc">eKYC Pending</button>
+  </div>
+
+  <!-- ── Refill follow-up ── -->
+  <div class="card tab-panel" id="panel-refill">
+    <h2>Refill Follow-up — consumers overdue for a refill</h2>
+    <p style="font-size:13px;color:var(--muted);margin-top:-6px;">
+      Worked out from each consumer's last delivery date in the imported BPCL list.
+      Log every call so the team knows who has been contacted.
+    </p>
+    <div class="totals" style="margin-bottom:12px;">
+      <div class="tile"><div class="label">Hot (3–4 months)</div><div class="value tier-1" id="cntT1">0</div></div>
+      <div class="tile"><div class="label">Warm (4–6 months)</div><div class="value tier-2" id="cntT2">0</div></div>
+      <div class="tile"><div class="label">Cold (6–12 months)</div><div class="value tier-3" id="cntT3">0</div></div>
+      <div class="tile"><div class="label">Dormant (1 year+)</div><div class="value tier-4" id="cntT4">0</div></div>
+    </div>
+    <div class="tierbar" id="tierFilter">
+      <button data-tier="1" class="on">Hot</button>
+      <button data-tier="2">Warm</button>
+      <button data-tier="3">Cold</button>
+      <button data-tier="4">Dormant</button>
+    </div>
+    <div class="grid" style="grid-template-columns:220px;margin-bottom:10px;">
+      <div><label>Search Area / Name / Number</label><input type="text" id="refillSearch" placeholder="KAMMAPURAM" /></div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Consumer No.</th><th>Name</th><th>Phone</th><th>Area</th>
+          <th>Last Delivery</th><th>Days</th><th>Last Call</th><th>Log Call</th>
+        </tr></thead>
+        <tbody id="refillBody"></tbody>
+      </table>
+    </div>
+    <p style="font-size:12px;color:var(--muted);" id="refillCount"></p>
+  </div>
+
+  <!-- ── eKYC pending ── -->
+  <div class="card tab-panel" id="panel-ekyc" style="display:none;">
+    <h2>eKYC Pending Consumers</h2>
+    <p style="font-size:13px;color:var(--muted);margin-top:-6px;">
+      From the imported eConnect eKYC report. Mark each consumer done once their
+      Aadhaar verification goes through.
+    </p>
+    <div class="grid" style="grid-template-columns:220px;margin-bottom:10px;">
+      <div><label>Search Area / Name / Number</label><input type="text" id="ekycSearch" /></div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Consumer No.</th><th>Name</th><th>Phone</th><th>Area</th><th>Last Call</th><th>Log Call</th><th></th>
+        </tr></thead>
+        <tbody id="ekycBody"></tbody>
+      </table>
+    </div>
+    <p style="font-size:12px;color:var(--muted);" id="ekycCount"></p>
+  </div>
+</main>
+
+<footer class="note">Internal use only — SR Bharat Gas, Kammapuram</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/cloud.js"></script>
+<script src="js/common.js"></script>
+<script src="js/followups.js"></script>
+</body>
+</html>
