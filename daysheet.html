@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Day Sheet — LPG Dealer Accounts</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="css/style.css" />
+<style>
+  /* three-column sheet like the Excel; stacks on small screens */
+  .sheet {
+    display: grid;
+    grid-template-columns: 1fr 1fr 0.9fr;
+    gap: 14px;
+    align-items: start;
+  }
+  @media (max-width: 980px) { .sheet { grid-template-columns: 1fr; } }
+
+  .sheet h3 {
+    margin: 0;
+    padding: 7px 10px;
+    font-size: 13px;
+    color: #fff;
+    background: var(--blue);
+    border-radius: 6px 6px 0 0;
+    text-align: center;
+  }
+  .sheet .sec { border: 1px solid var(--border); border-radius: 6px; margin-bottom: 12px; background: var(--card); }
+  .sheet .sec h4 {
+    margin: 0;
+    padding: 6px 10px;
+    font-size: 12px;
+    background: #f4dfc8;
+    color: #6b4a1c;
+    border-bottom: 1px solid var(--border);
+  }
+  .sheet .sec.debit h4 { background: #fde3df; color: #7c2d24; }
+  .sheet .sec.sum h4 { background: #fceec9; color: #6b5410; }
+  .sheet table { font-size: 12px; }
+  .sheet th, .sheet td { padding: 4px 6px; }
+  .sheet td input { padding: 3px 5px; font-size: 12px; min-width: 52px; }
+  .sheet td input[type="text"] { min-width: 80px; }
+  .sheet .tot td { font-weight: 700; background: #f2f6fa; }
+  .sheet .addrow { margin: 6px; }
+  .amt { text-align: right; font-variant-numeric: tabular-nums; }
+
+  @media print {
+    header.topbar, nav.dash-nav, .no-print, footer.note, .addrow, .btn { display: none !important; }
+    body { background: #fff; }
+    main { max-width: none; padding: 0; }
+    .sheet { grid-template-columns: 1fr 1fr 0.9fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div>
+    <h1>SR Bharat Gas, Kammapuram</h1>
+    <div class="sub">Daily Account Sheet</div>
+  </div>
+  <div class="who">
+    <span id="whoName"></span>
+    <button class="btn ghost" id="signOutBtn">Sign Out</button>
+  </div>
+</header>
+
+<nav class="dash-nav">
+  <a href="stock.html">Stock</a>
+  <a href="finance.html">Accounts</a>
+  <a href="operations.html">Operations</a>
+  <span class="nav-sep"></span>
+  <a href="accounts.html">Ledger Entry</a>
+  <a href="daysheet.html" class="on" aria-current="page">Day Sheet</a>
+</nav>
+
+<main style="max-width:1280px;">
+  <div class="card no-print">
+    <div class="grid" style="grid-template-columns:200px auto auto;align-items:end;">
+      <div>
+        <label>Date</label>
+        <input type="date" id="entryDate" required />
+      </div>
+      <div><button class="btn" id="saveBtn">Save Sheet</button></div>
+      <div><button class="btn secondary" id="printBtn" type="button">Print</button></div>
+    </div>
+  </div>
+
+  <div id="msg" class="msg hidden"></div>
+  <div id="matchMsg" class="msg hidden"></div>
+
+  <div class="sheet">
+    <!-- ── CREDIT ── -->
+    <div>
+      <h3>Credit</h3>
+      <div class="sec" data-sec="domestic"></div>
+      <div class="sec" data-sec="commercial"></div>
+      <div class="sec" data-sec="nc"></div>
+      <div class="sec" data-sec="additional"></div>
+      <div class="sec" data-sec="other_sales"></div>
+      <table style="margin-top:4px;"><tr class="tot"><td>Total Credit</td><td class="amt" id="totCredit">0</td></tr></table>
+    </div>
+
+    <!-- ── DEBIT ── -->
+    <div>
+      <h3>Debit</h3>
+      <div class="sec debit" data-sec="diesel"></div>
+      <div class="sec debit" data-sec="refill_commission"></div>
+      <div class="sec debit" data-sec="local"></div>
+      <div class="sec debit" data-sec="salary"></div>
+      <div class="sec debit" data-sec="vehicle"></div>
+      <div class="sec debit" data-sec="admin"></div>
+      <div class="sec debit" data-sec="other_exp"></div>
+      <table style="margin-top:4px;"><tr class="tot"><td>Total Debit</td><td class="amt" id="totDebit">0</td></tr></table>
+    </div>
+
+    <!-- ── SUMMARY ── -->
+    <div>
+      <h3>Summary</h3>
+
+      <div class="sec sum">
+        <h4>Delivery Boy — Handover</h4>
+        <div class="table-wrap"><table id="handoverTable">
+          <thead><tr><th>Driver</th><th class="amt">Paid to A/c</th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+      </div>
+
+      <div class="sec sum" data-sec="online"></div>
+
+      <div class="sec sum">
+        <h4>Cash Denomination</h4>
+        <div class="table-wrap"><table id="denomTable"><tbody></tbody></table></div>
+        <table><tr class="tot"><td>Cash Counted</td><td class="amt" id="denomTotal">0</td></tr></table>
+      </div>
+
+      <div class="sec sum">
+        <h4>Balance Amount In Office</h4>
+        <table id="waterfall">
+          <tr><td>Opening Amount</td><td class="amt"><input type="number" step="0.01" id="wOpening" value="0" /></td></tr>
+          <tr><td>Total Credit</td><td class="amt" id="wCredit">0</td></tr>
+          <tr><td>Total Expenditure</td><td class="amt" id="wDebit">0</td></tr>
+          <tr><td>Online / G-Pay</td><td class="amt" id="wOnline">0</td></tr>
+          <tr><td>Bank / ATM Deposit</td><td class="amt"><input type="number" step="0.01" id="wBank" value="0" /></td></tr>
+          <tr><td>Hand Over to Owner</td><td class="amt"><input type="number" step="0.01" id="wHandOver" value="0" /></td></tr>
+          <tr class="tot"><td>Balance In Office</td><td class="amt" id="wBalance">0</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer class="note">Internal use only — SR Bharat Gas, Kammapuram</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/cloud.js"></script>
+<script src="js/common.js"></script>
+<script src="js/daysheet.js"></script>
+</body>
+</html>

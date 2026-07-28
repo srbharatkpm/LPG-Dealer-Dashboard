@@ -52,6 +52,7 @@ const NAV_ITEMS = [
 
 const ENTRY_ITEMS = [
   { href: "accounts.html", label: "Ledger Entry", roles: ["owner", "manager", "accounts"] },
+  { href: "daysheet.html", label: "Day Sheet", roles: ["owner", "manager", "accounts"] },
   { href: "godown.html", label: "Godown Entry", roles: ["staff"] },
   { href: "delivery.html", label: "Trip Sheet", roles: ["driver"] },
 ];

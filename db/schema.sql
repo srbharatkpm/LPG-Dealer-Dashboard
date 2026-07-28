@@ -703,6 +703,28 @@ create policy plant_purchases_write on plant_purchases for all
   with check (is_office_role() or current_role_name() = 'staff');
 
 -- =========================================================
+-- 6e. day_sheets — the office's daily Credit/Debit sheet, mirroring
+--     their Excel format 1:1. Stored as one JSONB document per date:
+--     the sheet is a free-form document with variable rows per section
+--     (drivers, expense lines), so a document column matches the paper
+--     better than a dozen skinny tables would.
+-- =========================================================
+create table if not exists day_sheets (
+  id          uuid primary key default gen_random_uuid(),
+  entry_date  date not null unique,
+  data        jsonb not null default '{}'::jsonb,
+  created_by  uuid references profiles(id),
+  updated_at  timestamptz not null default now()
+);
+
+alter table day_sheets enable row level security;
+
+drop policy if exists day_sheets_all on day_sheets;
+create policy day_sheets_all on day_sheets for all
+  using (is_office_role())
+  with check (is_office_role());
+
+-- =========================================================
 -- 7. Table privileges (GRANTs)
 --
 -- GRANT and RLS are two separate gates: Postgres checks the table
