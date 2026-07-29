@@ -817,13 +817,26 @@ create policy driver_sheets_update on driver_sheets for update
 -- Blanket form rather than a table-by-table list: this runs last, so
 -- every table above already exists, and there is no list to fall out of
 -- sync when a table is added later.
+--
+-- This project's database has NO default privileges at all (confirmed
+-- live: authenticated AND service_role both hit "permission denied"
+-- until granted explicitly), so every role the app touches is granted
+-- here: `authenticated` for signed-in users via PostgREST, and
+-- `service_role` for the edge functions (create-team-user inserts the
+-- new staff member's profile row with it).
 grant usage on schema public to authenticated;
 grant select, insert, update, delete on all tables in schema public to authenticated;
 grant usage, select on all sequences in schema public to authenticated;
 grant execute on all functions in schema public to authenticated;
+
+grant usage on schema public to service_role;
+grant all on all tables in schema public to service_role;
+grant usage, select on all sequences in schema public to service_role;
 
 -- ...and for anything created after this point.
 alter default privileges in schema public
   grant select, insert, update, delete on tables to authenticated;
 alter default privileges in schema public
   grant execute on functions to authenticated;
+alter default privileges in schema public
+  grant all on tables to service_role;
