@@ -85,8 +85,78 @@ async function loadStockDash() {
   document.getElementById("sentTotal").textContent = qty(sent);
 }
 
+// ---------- Owner-only manual adjustment ----------
+const ADJUST_CONFIG = [
+  { product: "14.2 Kg Domestic", conditions: ["full", "empty"] },
+  { product: "19 Kg Commercial", conditions: ["full", "empty"] },
+  { product: "5 Kg BMCG", conditions: ["full", "empty"] },
+  { product: "DPR (Regulator)", conditions: ["sound", "defective"] },
+  { product: "Hose", conditions: ["qty"] },
+  { product: "Lighter", conditions: ["qty"] },
+  { product: "Book", conditions: ["qty"] },
+  { product: "Stove", conditions: ["qty"] },
+];
+
+async function loadAdjust(profile) {
+  if (profile.role !== "owner") return;
+  document.getElementById("adjustCard").style.display = "";
+  const date = document.getElementById("entryDate").value;
+  const rows = await lpgCloud.select("godown_stock", { eq: { entry_date: date } });
+  const byKey = {};
+  rows.forEach((r) => (byKey[r.product + "|" + r.condition] = num(r.quantity)));
+
+  const grid = document.getElementById("adjustGrid");
+  grid.innerHTML = "";
+  ADJUST_CONFIG.forEach(({ product, conditions }) => {
+    const card = document.createElement("div");
+    card.className = "stock-card";
+    card.innerHTML =
+      '<div class="name">' + escapeHtml(product) + '</div><div class="counts" style="gap:8px;">' +
+      conditions
+        .map(
+          (c) =>
+            '<div style="flex:1;"><label style="font-size:11px;">' +
+            (CONDITION_LABELS[c] || c) +
+            '</label><input type="number" step="1" data-adj="' + product + '|' + c + '" value="' +
+            (byKey[product + "|" + c] || 0) + '" /></div>'
+        )
+        .join("") +
+      "</div>";
+    grid.appendChild(card);
+  });
+
+  document.getElementById("adjustSaveBtn").onclick = async () => {
+    try {
+      const upserts = [];
+      grid.querySelectorAll("input[data-adj]").forEach((inp) => {
+        const [product, condition] = inp.dataset.adj.split("|");
+        upserts.push({
+          entry_date: date,
+          product,
+          condition,
+          quantity: num(inp.value),
+          created_by: profile.id,
+        });
+      });
+      await lpgCloud.upsert("godown_stock", upserts, "entry_date,product,condition");
+      const msg = document.getElementById("msg");
+      msg.className = "msg ok";
+      msg.textContent = "Stock adjusted.";
+      await loadStockDash();
+      await loadAdjust(profile);
+    } catch (err) {
+      const msg = document.getElementById("msg");
+      msg.className = "msg error";
+      msg.textContent = err.message || "Could not adjust stock.";
+    }
+  };
+}
+
 initDashboard({
   current: "stock.html",
   roles: ["owner", "manager", "staff"],
-  load: loadStockDash,
+  load: async (profile) => {
+    await loadStockDash();
+    await loadAdjust(profile);
+  },
 });

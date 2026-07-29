@@ -397,6 +397,30 @@ document.getElementById("targetsSaveBtn").addEventListener("click", async () => 
 });
 
 // ---------- Plant purchases ----------
+// A recorded uplift moves godown stock automatically: fulls received
+// increase FULL, empties sent to the plant decrease EMPTY. Deleting the
+// purchase reverses it. sign +1 applies, -1 reverses.
+async function applyPurchaseDelta(row, sign) {
+  const deltas = [];
+  if (num(row.qty_received)) deltas.push({ condition: "full", d: sign * num(row.qty_received) });
+  if (num(row.empties_sent)) deltas.push({ condition: "empty", d: -sign * num(row.empties_sent) });
+  if (!deltas.length) return;
+  const existing = await lpgCloud.select("godown_stock", { eq: { entry_date: row.purchase_date } });
+  const byKey = {};
+  existing.forEach((r) => (byKey[r.product + "|" + r.condition] = r));
+  const rows = deltas.map(({ condition, d }) => {
+    const cur = byKey[row.product + "|" + condition];
+    return {
+      entry_date: row.purchase_date,
+      product: row.product,
+      condition,
+      quantity: (cur ? num(cur.quantity) : 0) + d,
+      created_by: opProfile.id,
+    };
+  });
+  await lpgCloud.upsert("godown_stock", rows, "entry_date,product,condition");
+}
+
 async function loadPurchases() {
   const mStart = monthStart(currentDate());
   const rows = await lpgCloud.select("plant_purchases", {
@@ -404,6 +428,8 @@ async function loadPurchases() {
     lte: { purchase_date: currentDate() },
     order: { column: "purchase_date", ascending: false },
   });
+  const purchaseById = {};
+  rows.forEach((r) => (purchaseById[r.id] = r));
   const body = document.getElementById("purchasesBody");
   body.innerHTML = "";
   let totalIn = 0, totalValue = 0;
@@ -426,7 +452,9 @@ async function loadPurchases() {
   document.getElementById("ppTotalValue").textContent = fmt(totalValue);
   body.querySelectorAll("[data-del]").forEach((btn) =>
     btn.addEventListener("click", async () => {
+      const row = purchaseById[btn.dataset.del];
       await lpgCloud.remove("plant_purchases", btn.dataset.del);
+      if (row) await applyPurchaseDelta(row, -1); // put the stock back
       await loadPurchases();
     })
   );
@@ -435,7 +463,7 @@ async function loadPurchases() {
 document.getElementById("purchaseForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   try {
-    await lpgCloud.insert("plant_purchases", [
+    const inserted = await lpgCloud.insert("plant_purchases", [
       {
         purchase_date: currentDate(),
         invoice_no: document.getElementById("ppInvoice").value.trim(),
@@ -447,8 +475,11 @@ document.getElementById("purchaseForm").addEventListener("submit", async (e) => 
         created_by: opProfile.id,
       },
     ]);
+    // uplift moves stock automatically: fulls in, empties out
+    if (inserted && inserted[0]) await applyPurchaseDelta(inserted[0], +1);
     document.getElementById("purchaseForm").reset();
     await loadPurchases();
+    showOpMsg("Purchase recorded — godown stock updated.", "ok");
   } catch (err) {
     showOpMsg(err.message || "Could not record the purchase.", "error");
   }

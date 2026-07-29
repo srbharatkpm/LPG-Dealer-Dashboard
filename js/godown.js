@@ -49,6 +49,10 @@ function currentDate() {
 }
 
 // ---------- Stock ----------
+// Editable by the Godown Incharge. Stock also moves automatically:
+// plant purchases add fulls / send out empties, and approved driver
+// sheets swap full->empty per delivered cylinder. The Owner has a
+// correction panel on the Stock dashboard as well.
 function renderStockRows() {
   const grid = document.getElementById("stockGrid");
   grid.innerHTML = "";
