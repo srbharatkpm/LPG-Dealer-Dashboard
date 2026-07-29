@@ -52,25 +52,18 @@ async function loadOrInitTrip() {
     document.getElementById("tripUpliftTime").value = currentTrip.uplift_time || "";
     document.getElementById("tripProduct").value = currentTrip.product || "14.2 Kg Domestic";
     document.getElementById("tripRate").value = currentTrip.rate ?? 0;
-    ["n500", "n200", "n100", "n50", "n20", "n10", "c10", "c5", "c2", "c1"].forEach((id) => {
-      document.getElementById(id).value = currentTrip[denomFieldMap[id]] ?? 0;
-    });
-    document.getElementById("paidToAccounts").value = currentTrip.total_paid_to_accounts ?? 0;
     showEntrySections();
     await loadEntries();
-    recomputeCashTotal();
   } else {
     currentTrip = null;
     document.getElementById("entriesCard").style.display = "none";
     document.getElementById("listCard").style.display = "none";
-    document.getElementById("cashCard").style.display = "none";
   }
 }
 
 function showEntrySections() {
   document.getElementById("entriesCard").style.display = "";
   document.getElementById("listCard").style.display = "";
-  document.getElementById("cashCard").style.display = "";
 }
 
 document.getElementById("tripDate").addEventListener("change", () => {
@@ -105,7 +98,6 @@ document.getElementById("tripForm").addEventListener("submit", async (e) => {
     }
     showEntrySections();
     await loadEntries();
-    recomputeCashTotal();
     showMsg("Trip details saved.", "ok");
   } catch (err) {
     showMsg(err.message || "Could not save trip.", "error");
@@ -234,67 +226,15 @@ async function loadEntries() {
       await loadEntries();
     });
   });
-
-  recomputeTallyMsg(totalDelivered * rate);
 }
 
-// ---------- Cash & Handover ----------
-const denomMap = { n500: 500, n200: 200, n100: 100, n50: 50, n20: 20, n10: 10, c10: 10, c5: 5, c2: 2, c1: 1 };
-const denomFieldMap = {
-  n500: "note_500", n200: "note_200", n100: "note_100", n50: "note_50", n20: "note_20", n10: "note_10",
-  c10: "coin_10", c5: "coin_5", c2: "coin_2", c1: "coin_1",
-};
-
-function recomputeCashTotal() {
-  let total = 0;
-  Object.entries(denomMap).forEach(([id, val]) => (total += num(document.getElementById(id).value) * val));
-  document.getElementById("cashTotal").textContent = fmt(total);
-  const rate = num(document.getElementById("tripRate").value);
-  const totalDelivered = num(document.getElementById("totalDelivered").textContent);
-  recomputeTallyMsg(totalDelivered * rate);
-  return total;
-}
-Object.keys(denomMap).forEach((id) => document.getElementById(id).addEventListener("input", recomputeCashTotal));
-document.getElementById("paidToAccounts").addEventListener("input", () => recomputeTallyMsg());
+// Cash denomination & handover moved to the Daily Sheet (driversheet.html),
+// which is where the settlement — including the cash count — is submitted
+// for the office to verify and approve.
 document.getElementById("tripRate").addEventListener("input", () => {
   const rate = num(document.getElementById("tripRate").value);
   const totalDelivered = num(document.getElementById("totalDelivered").textContent);
   document.getElementById("talliedAmount").textContent = fmt(totalDelivered * rate);
-  recomputeTallyMsg(totalDelivered * rate);
-});
-
-function recomputeTallyMsg(talliedOverride) {
-  const rate = num(document.getElementById("tripRate").value);
-  const totalDelivered = num(document.getElementById("totalDelivered").textContent);
-  const tallied = talliedOverride != null ? talliedOverride : totalDelivered * rate;
-  const paid = num(document.getElementById("paidToAccounts").value);
-  const el = document.getElementById("tallyMsg");
-  const diff = Math.round((tallied - paid) * 100) / 100;
-  if (Math.abs(diff) > 0.5) {
-    el.className = "msg error";
-    el.textContent = `Tallied amount (${fmt(tallied)}) does not match Paid to Accounts (${fmt(paid)}) — difference ${fmt(diff)}.`;
-  } else {
-    el.className = "msg ok";
-    el.textContent = `Paid to Accounts matches the tallied amount.`;
-  }
-}
-
-document.getElementById("cashForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  hideMsg();
-  if (!currentTrip) {
-    showMsg("Save trip details first.", "error");
-    return;
-  }
-  try {
-    const payload = { total_paid_to_accounts: num(document.getElementById("paidToAccounts").value) };
-    Object.entries(denomFieldMap).forEach(([id, field]) => (payload[field] = num(document.getElementById(id).value)));
-    const rows = await lpgCloud.update("delivery_trips", currentTrip.id, payload);
-    currentTrip = rows[0];
-    showMsg("Cash & handover saved.", "ok");
-  } catch (err) {
-    showMsg(err.message || "Could not save cash count.", "error");
-  }
 });
 
 (async () => {

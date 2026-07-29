@@ -282,24 +282,6 @@ function recompute() {
   document.getElementById(id).addEventListener("input", recompute)
 );
 
-// ---------- driver handover (from trip sheets, read-only) ----------
-async function loadHandover() {
-  const trips = await lpgCloud.select("delivery_trips", {
-    eq: { trip_date: document.getElementById("entryDate").value },
-  });
-  const tbody = document.querySelector("#handoverTable tbody");
-  let total = 0;
-  tbody.innerHTML =
-    trips
-      .map((t) => {
-        total += num(t.total_paid_to_accounts);
-        return "<tr><td>" + escapeHtml(t.driver_name) + '</td><td class="amt">' +
-          fmtN(t.total_paid_to_accounts) + "</td></tr>";
-      })
-      .join("") +
-    '<tr class="tot"><td>Total</td><td class="amt">' + fmtN(total) + "</td></tr>";
-}
-
 // ---------- driver sheet verification & approval ----------
 // Submitted sheets land here automatically; Approve folds their sales
 // into this day sheet's Credit (see approvedAgg / recompute).
@@ -459,7 +441,6 @@ async function loadSheet() {
     state = freshState();
   }
   renderAll();
-  await loadHandover();
   await loadDriverSheets();
   recompute();
 }
