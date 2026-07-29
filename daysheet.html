@@ -4,6 +4,9 @@
 <meta charset="UTF-8" />
 <title>Day Sheet — LPG Dealer Accounts</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#073e6e" />
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icons/icon-192.png" />
 <link rel="stylesheet" href="css/style.css" />
 <style>
   /* three-column sheet like the Excel; stacks on small screens */
@@ -156,5 +159,6 @@
 <script src="js/cloud.js"></script>
 <script src="js/common.js"></script>
 <script src="js/daysheet.js"></script>
+<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");</script>
 </body>
 </html>
