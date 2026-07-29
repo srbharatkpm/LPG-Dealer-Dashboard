@@ -353,26 +353,68 @@ async function loadDriverSheets() {
         .join("")
     : '<tr><td colspan="5" style="color:var(--muted);">No driver sheets for this date.</td></tr>';
 
+  const byId = {};
+  sheets.forEach((s) => (byId[s.id] = s));
+
+  // Apply (or reverse) a sheet's deliveries onto that date's godown
+  // stock: full down / empty up per delivered cylinder, and so on.
+  async function applyStockDelta(sheet, sign) {
+    const deltas = dsStockDelta(sheet.data || {}, sign);
+    const keys = Object.keys(deltas);
+    if (!keys.length) return;
+    const existing = await lpgCloud.select("godown_stock", { eq: { entry_date: sheet.sheet_date } });
+    const byKey = {};
+    existing.forEach((r) => (byKey[r.product + "|" + r.condition] = r));
+    const rows = keys.map((k) => {
+      const [product, condition] = k.split("|");
+      const current = byKey[k] ? num(byKey[k].quantity) : 0;
+      return {
+        entry_date: sheet.sheet_date,
+        product,
+        condition,
+        quantity: current + deltas[k],
+        created_by: dsProfile.id,
+      };
+    });
+    await lpgCloud.upsert("godown_stock", rows, "entry_date,product,condition");
+  }
+
   tbody.querySelectorAll("[data-approve]").forEach((b) =>
     b.addEventListener("click", async () => {
-      await lpgCloud.update("driver_sheets", b.dataset.approve, {
-        status: "approved",
-        approved_by: dsProfile.id,
-        approved_at: new Date().toISOString(),
-      });
-      await loadDriverSheets();
-      recompute();
+      const sheet = byId[b.dataset.approve];
+      try {
+        if (!sheet.stock_applied) await applyStockDelta(sheet, +1);
+        await lpgCloud.update("driver_sheets", sheet.id, {
+          status: "approved",
+          approved_by: dsProfile.id,
+          approved_at: new Date().toISOString(),
+          stock_applied: true,
+        });
+        await loadDriverSheets();
+        recompute();
+      } catch (err) {
+        document.getElementById("msg").className = "msg error";
+        document.getElementById("msg").textContent = err.message || "Could not approve.";
+      }
     })
   );
   tbody.querySelectorAll("[data-reopen]").forEach((b) =>
     b.addEventListener("click", async () => {
-      await lpgCloud.update("driver_sheets", b.dataset.reopen, {
-        status: "submitted",
-        approved_by: null,
-        approved_at: null,
-      });
-      await loadDriverSheets();
-      recompute();
+      const sheet = byId[b.dataset.reopen];
+      try {
+        if (sheet.stock_applied) await applyStockDelta(sheet, -1);
+        await lpgCloud.update("driver_sheets", sheet.id, {
+          status: "submitted",
+          approved_by: null,
+          approved_at: null,
+          stock_applied: false,
+        });
+        await loadDriverSheets();
+        recompute();
+      } catch (err) {
+        document.getElementById("msg").className = "msg error";
+        document.getElementById("msg").textContent = err.message || "Could not reopen.";
+      }
     })
   );
 

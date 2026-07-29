@@ -60,6 +60,45 @@ function dsTotals(data) {
   return { sale, debits, counted, delivered, expectedCash: sale - debits };
 }
 
+// Stock movement a sheet causes in the godown when APPROVED, as
+// {"product|condition": delta}. Swap semantics: every delivered
+// cylinder is one FULL out and one EMPTY back in; a sold regulator
+// comes out of SOUND stock; accessories just reduce their count.
+// sign +1 applies, -1 reverses (Reopen).
+const DS_TO_GODOWN = [
+  ["14.2 Kg Cylinder", "14.2 Kg Domestic", "cyl"],
+  ["19 Kg Cylinder", "19 Kg Commercial", "cyl"],
+  ["BMCG Cylinder", "5 Kg BMCG", "cyl"],
+  ["5 Kg Cylinder", "5 Kg BMCG", "cyl"],
+  ["DPR", "DPR (Regulator)", "dpr"],
+  ["Hose", "Hose", "acc"],
+  ["Lighter", "Lighter", "acc"],
+  ["Book", "Book", "acc"],
+  ["Stove", "Stove", "acc"],
+];
+
+function dsStockDelta(data, sign) {
+  const deltas = {};
+  const add = (p, c, d) => {
+    if (!d) return;
+    const k = p + "|" + c;
+    deltas[k] = (deltas[k] || 0) + d;
+  };
+  DS_TO_GODOWN.forEach(([dsProduct, gProduct, kind]) => {
+    const delivered = dsNum(((data.stock || {})[dsProduct] || {}).delivered);
+    if (!delivered) return;
+    if (kind === "cyl") {
+      add(gProduct, "full", -sign * delivered);
+      add(gProduct, "empty", sign * delivered);
+    } else if (kind === "dpr") {
+      add(gProduct, "sound", -sign * delivered);
+    } else {
+      add(gProduct, "qty", -sign * delivered);
+    }
+  });
+  return deltas;
+}
+
 // Per-item {qty, amount} for one sheet — used by the Day Sheet to fold
 // APPROVED driver sheets into the day's Total Sales item by item.
 function dsSaleBreakdown(data) {

@@ -312,8 +312,10 @@ begin
       using (current_role_name() = 'staff' or is_office_role() or is_ops_role())$p$, t, t);
 
     execute format('drop policy if exists %I_insert on %I', t, t);
+    -- accounts included: approving a driver sheet writes the resulting
+    -- stock movement into godown_stock on the office's behalf
     execute format($p$create policy %I_insert on %I for insert
-      with check (current_role_name() in ('staff', 'owner', 'manager'))$p$, t, t);
+      with check (current_role_name() = 'staff' or is_office_role())$p$, t, t);
 
     execute format('drop policy if exists %I_update on %I', t, t);
     execute format($p$create policy %I_update on %I for update
@@ -797,6 +799,9 @@ alter table driver_sheets add column if not exists status text not null default 
   check (status in ('draft', 'submitted', 'approved'));
 alter table driver_sheets add column if not exists approved_by uuid references profiles(id);
 alter table driver_sheets add column if not exists approved_at timestamptz;
+-- true once this sheet's deliveries have been applied to godown_stock
+-- (so approve/reopen can apply/reverse exactly once)
+alter table driver_sheets add column if not exists stock_applied boolean not null default false;
 
 -- older rows recorded submission as a boolean only
 update driver_sheets set status = 'submitted' where submitted and status = 'draft';
