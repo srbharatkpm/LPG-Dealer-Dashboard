@@ -285,7 +285,23 @@ const lpgCloud = (() => {
   async function callFunction(name, body) {
     const sb = client_();
     const { data, error } = await sb.functions.invoke(name, { body });
-    if (error) throw error;
+    if (error) {
+      // supabase-js hides the response behind error.context and throws a
+      // generic "non-2xx status code" — dig the actual message out so the
+      // user sees WHY (not signed in / not owner / bad input / gateway).
+      if (error.context && typeof error.context.text === "function") {
+        let detail = "";
+        try {
+          detail = await error.context.text();
+        } catch (_) { /* body unreadable; fall through */ }
+        try {
+          const j = JSON.parse(detail);
+          detail = j.error || j.message || detail;
+        } catch (_) { /* not JSON; use raw text */ }
+        if (detail) throw new Error(detail);
+      }
+      throw error;
+    }
     return data;
   }
 
