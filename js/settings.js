@@ -73,7 +73,10 @@ async function loadTeam() {
             .join("")}
         </select>
       </td>
-      <td><button class="btn small" data-save="${r.id}">Save</button></td>
+      <td style="white-space:nowrap;">
+        <button class="btn small" data-save="${r.id}">Save</button>
+        ${r.role !== "owner" ? `<button class="btn small danger" data-remove="${r.id}" data-name="${escapeHtml(r.full_name)}">Remove</button>` : ""}
+      </td>
     `;
     body.appendChild(tr);
   });
@@ -86,6 +89,18 @@ async function loadTeam() {
         showStMsg("Role updated.", "ok");
       } catch (err) {
         showStMsg(err.message || "Could not update the role.", "error");
+      }
+    });
+  });
+  body.querySelectorAll("button[data-remove]").forEach((b) => {
+    b.addEventListener("click", async () => {
+      if (!confirm(`Remove ${b.dataset.name}'s login completely? They will no longer be able to sign in.`)) return;
+      try {
+        await lpgCloud.callFunction("create-team-user", { action: "delete", user_id: b.dataset.remove });
+        showStMsg("Login removed.", "ok");
+        await loadTeam();
+      } catch (err) {
+        showStMsg(err.message || "Could not remove the login.", "error");
       }
     });
   });

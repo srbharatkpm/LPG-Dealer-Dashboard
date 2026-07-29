@@ -38,20 +38,27 @@ function progressCell(done, target) {
 }
 
 // ---------- Bookings ----------
+let editingBookingId = null;
+
 async function loadBookings() {
   const rows = await lpgCloud.select("bookings", {
     eq: { booking_date: currentDate() },
     order: { column: "created_at", ascending: true },
   });
+  const byId = {};
   const body = document.getElementById("bookingsBody");
   body.innerHTML = "";
   rows.forEach((b) => {
+    byId[b.id] = b;
     const tr = document.createElement("tr");
+    const open = b.status !== "delivered" && b.status !== "cancelled";
     const actions =
-      b.status === "delivered" || b.status === "cancelled"
-        ? ""
-        : '<button class="btn small" data-deliver="' + b.id + '">Delivered</button> ' +
-          '<button class="btn small danger" data-cancel="' + b.id + '">Cancel</button>';
+      (open
+        ? '<button class="btn small" data-deliver="' + b.id + '">Delivered</button> ' +
+          '<button class="btn small secondary" data-bk-edit="' + b.id + '">Edit</button> ' +
+          '<button class="btn small danger" data-cancel="' + b.id + '">Cancel</button> '
+        : "") +
+      '<button class="btn small danger" data-bk-del="' + b.id + '">Delete</button>';
     tr.innerHTML =
       "<td>" + escapeHtml(b.consumer_name) + (b.consumer_no ? " (" + escapeHtml(b.consumer_no) + ")" : "") + "</td>" +
       "<td>" + escapeHtml(b.phone) + "</td>" +
@@ -61,7 +68,7 @@ async function loadBookings() {
       "<td>" + escapeHtml(b.payment_mode) + "</td>" +
       "<td>" + escapeHtml(b.assigned_driver ? nameOf(b.assigned_driver) : "—") + "</td>" +
       "<td>" + escapeHtml(b.status) + "</td>" +
-      "<td>" + actions + "</td>";
+      '<td style="white-space:nowrap;">' + actions + "</td>";
     body.appendChild(tr);
   });
   body.querySelectorAll("[data-deliver]").forEach((btn) =>
@@ -78,33 +85,63 @@ async function loadBookings() {
       await loadOverview();
     })
   );
+  body.querySelectorAll("[data-bk-del]").forEach((btn) =>
+    btn.addEventListener("click", async () => {
+      if (!confirm("Delete this booking completely?")) return;
+      await lpgCloud.remove("bookings", btn.dataset.bkDel);
+      await loadBookings();
+      await loadOverview();
+    })
+  );
+  // Edit loads the booking back into the form; submit becomes an update.
+  body.querySelectorAll("[data-bk-edit]").forEach((btn) =>
+    btn.addEventListener("click", () => {
+      const b = byId[btn.dataset.bkEdit];
+      editingBookingId = b.id;
+      document.getElementById("bkConsumerNo").value = b.consumer_no || "";
+      document.getElementById("bkName").value = b.consumer_name || "";
+      document.getElementById("bkPhone").value = b.phone || "";
+      document.getElementById("bkLine").value = b.line || "";
+      document.getElementById("bkProduct").value = b.product;
+      document.getElementById("bkQty").value = b.qty;
+      document.getElementById("bkPayment").value = b.payment_mode;
+      document.getElementById("bkDriver").value = b.assigned_driver || "";
+      document.querySelector('#bookingForm button[type="submit"]').textContent = "Update Booking";
+      document.getElementById("panel-bookings").scrollIntoView({ behavior: "smooth" });
+    })
+  );
 }
 
 document.getElementById("bookingForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   try {
     const driver = document.getElementById("bkDriver").value || null;
-    await lpgCloud.insert("bookings", [
-      {
-        booking_date: currentDate(),
-        consumer_no: document.getElementById("bkConsumerNo").value.trim(),
-        consumer_name: document.getElementById("bkName").value.trim(),
-        phone: document.getElementById("bkPhone").value.trim(),
-        line: document.getElementById("bkLine").value.trim(),
-        product: document.getElementById("bkProduct").value,
-        qty: num(document.getElementById("bkQty").value) || 1,
-        payment_mode: document.getElementById("bkPayment").value,
-        assigned_driver: driver,
-        status: driver ? "assigned" : "booked",
-        created_by: opProfile.id,
-      },
-    ]);
+    const payload = {
+      consumer_no: document.getElementById("bkConsumerNo").value.trim(),
+      consumer_name: document.getElementById("bkName").value.trim(),
+      phone: document.getElementById("bkPhone").value.trim(),
+      line: document.getElementById("bkLine").value.trim(),
+      product: document.getElementById("bkProduct").value,
+      qty: num(document.getElementById("bkQty").value) || 1,
+      payment_mode: document.getElementById("bkPayment").value,
+      assigned_driver: driver,
+      status: driver ? "assigned" : "booked",
+    };
+    if (editingBookingId) {
+      await lpgCloud.update("bookings", editingBookingId, payload);
+      editingBookingId = null;
+    } else {
+      payload.booking_date = currentDate();
+      payload.created_by = opProfile.id;
+      await lpgCloud.insert("bookings", [payload]);
+    }
     document.getElementById("bookingForm").reset();
     document.getElementById("bkQty").value = "1";
+    document.querySelector('#bookingForm button[type="submit"]').textContent = "Add Booking";
     await loadBookings();
     await loadOverview();
   } catch (err) {
-    showOpMsg(err.message || "Could not add the booking.", "error");
+    showOpMsg(err.message || "Could not save the booking.", "error");
   }
 });
 

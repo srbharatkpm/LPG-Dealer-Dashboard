@@ -197,6 +197,82 @@ document.getElementById("customerImportBtn").addEventListener("click", async () 
   }
 });
 
+// ---------- Find & edit a consumer (server-side search; 23k rows) ----------
+let custSearchTimer = null;
+document.getElementById("custSearch").addEventListener("input", () => {
+  clearTimeout(custSearchTimer);
+  custSearchTimer = setTimeout(searchConsumers, 350);
+});
+
+async function searchConsumers() {
+  const q = document.getElementById("custSearch").value.trim();
+  const body = document.getElementById("custEditBody");
+  if (q.length < 3) {
+    body.innerHTML = '<tr><td colspan="6" style="color:var(--muted);">Type at least 3 characters.</td></tr>';
+    return;
+  }
+  const sb = lpgCloud.client();
+  const like = "%" + q.replace(/[%_]/g, "") + "%";
+  const { data, error } = await sb
+    .from("customers")
+    .select("id, consumer_no, name, phone, line, opted_out")
+    .or(
+      "consumer_no.ilike." + like + ",name.ilike." + like +
+      ",phone.ilike." + like + ",line.ilike." + like
+    )
+    .limit(15);
+  if (error) {
+    body.innerHTML = '<tr><td colspan="6" class="msg error">' + escapeHtml(error.message) + "</td></tr>";
+    return;
+  }
+  body.innerHTML = data.length
+    ? data
+        .map(
+          (c) =>
+            "<tr><td>" + escapeHtml(c.consumer_no) + "</td>" +
+            '<td><input type="text" data-cu-name="' + c.id + '" value="' + escapeHtml(c.name) + '" /></td>' +
+            '<td><input type="text" data-cu-phone="' + c.id + '" value="' + escapeHtml(c.phone) + '" /></td>' +
+            '<td><input type="text" data-cu-line="' + c.id + '" value="' + escapeHtml(c.line) + '" /></td>' +
+            '<td><input type="checkbox" data-cu-opt="' + c.id + '"' + (c.opted_out ? " checked" : "") + " /></td>" +
+            '<td style="white-space:nowrap;">' +
+            '<button class="btn small" data-cu-save="' + c.id + '">Save</button> ' +
+            '<button class="btn small danger" data-cu-del="' + c.id + '">Delete</button></td></tr>'
+        )
+        .join("")
+    : '<tr><td colspan="6" style="color:var(--muted);">No consumer matches.</td></tr>';
+
+  body.querySelectorAll("[data-cu-save]").forEach((b) =>
+    b.addEventListener("click", async () => {
+      const id = b.dataset.cuSave;
+      try {
+        await lpgCloud.update("customers", id, {
+          name: body.querySelector('[data-cu-name="' + id + '"]').value.trim(),
+          phone: normalizePhone(body.querySelector('[data-cu-phone="' + id + '"]').value),
+          line: body.querySelector('[data-cu-line="' + id + '"]').value.trim(),
+          opted_out: body.querySelector('[data-cu-opt="' + id + '"]').checked,
+        });
+        showMsg("Consumer updated.", "ok");
+        await loadCustomerSummary();
+      } catch (err) {
+        showMsg(err.message || "Could not update the consumer.", "error");
+      }
+    })
+  );
+  body.querySelectorAll("[data-cu-del]").forEach((b) =>
+    b.addEventListener("click", async () => {
+      if (!confirm("Delete this consumer from the database?")) return;
+      try {
+        await lpgCloud.remove("customers", b.dataset.cuDel);
+        showMsg("Consumer deleted.", "ok");
+        await searchConsumers();
+        await loadCustomerSummary();
+      } catch (err) {
+        showMsg(err.message || "Could not delete the consumer.", "error");
+      }
+    })
+  );
+}
+
 // ---------- Templates ----------
 let templatesCache = [];
 

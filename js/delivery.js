@@ -114,6 +114,18 @@ document.getElementById("tripForm").addEventListener("submit", async (e) => {
   }
 });
 
+// When set, the form is modifying this existing entry instead of adding.
+let editingEntryId = null;
+
+function resetEntryForm() {
+  editingEntryId = null;
+  document.getElementById("entryForm").reset();
+  document.getElementById("eDelivered").value = "1";
+  document.getElementById("eReturn").value = "0";
+  document.getElementById("eAmount").value = "0";
+  document.getElementById("entryAddBtn").textContent = "Add Entry";
+}
+
 document.getElementById("entryForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   hideMsg();
@@ -124,12 +136,7 @@ document.getElementById("entryForm").addEventListener("submit", async (e) => {
   const btn = document.getElementById("entryAddBtn");
   btn.disabled = true;
   try {
-    const existingCount = (
-      await lpgCloud.select("delivery_entries", { eq: { trip_id: currentTrip.id } })
-    ).length;
     const payload = {
-      trip_id: currentTrip.id,
-      s_no: existingCount + 1,
       consumer_no: document.getElementById("eConsumerNo").value.trim(),
       consumer_name: document.getElementById("eConsumerName").value.trim(),
       phone_no: document.getElementById("ePhone").value.trim(),
@@ -140,14 +147,20 @@ document.getElementById("entryForm").addEventListener("submit", async (e) => {
       return_qty: num(document.getElementById("eReturn").value) || 0,
       amount: num(document.getElementById("eAmount").value) || 0,
     };
-    await lpgCloud.insert("delivery_entries", [payload]);
-    document.getElementById("entryForm").reset();
-    document.getElementById("eDelivered").value = "1";
-    document.getElementById("eReturn").value = "0";
-    document.getElementById("eAmount").value = "0";
+    if (editingEntryId) {
+      await lpgCloud.update("delivery_entries", editingEntryId, payload);
+    } else {
+      const existingCount = (
+        await lpgCloud.select("delivery_entries", { eq: { trip_id: currentTrip.id } })
+      ).length;
+      payload.trip_id = currentTrip.id;
+      payload.s_no = existingCount + 1;
+      await lpgCloud.insert("delivery_entries", [payload]);
+    }
+    resetEntryForm();
     await loadEntries();
   } catch (err) {
-    showMsg(err.message || "Could not add entry.", "error");
+    showMsg(err.message || "Could not save entry.", "error");
   } finally {
     btn.disabled = false;
   }
@@ -179,9 +192,33 @@ async function loadEntries() {
       <td>${r.delivered_qty ?? 0}</td>
       <td>${r.return_qty ?? 0}</td>
       <td>${fmt(r.amount)}</td>
-      <td><button class="btn small danger" data-id="${r.id}">Delete</button></td>
+      <td style="white-space:nowrap;">
+        <button class="btn small secondary" data-edit="${r.id}">Edit</button>
+        <button class="btn small danger" data-id="${r.id}">Delete</button>
+      </td>
     `;
     body.appendChild(tr);
+  });
+
+  // Edit loads the row back into the form; the submit becomes an update.
+  const rowsById = {};
+  rows.forEach((r) => (rowsById[r.id] = r));
+  body.querySelectorAll("button[data-edit]").forEach((b) => {
+    b.addEventListener("click", () => {
+      const r = rowsById[b.getAttribute("data-edit")];
+      editingEntryId = r.id;
+      document.getElementById("eConsumerNo").value = r.consumer_no || "";
+      document.getElementById("eConsumerName").value = r.consumer_name || "";
+      document.getElementById("ePhone").value = r.phone_no || "";
+      document.getElementById("eBio").value = r.bio_metric || "";
+      document.getElementById("eSafety").value = r.safety_check || "";
+      document.getElementById("eOtp").value = r.otp || "";
+      document.getElementById("eDelivered").value = r.delivered_qty ?? 1;
+      document.getElementById("eReturn").value = r.return_qty ?? 0;
+      document.getElementById("eAmount").value = r.amount ?? 0;
+      document.getElementById("entryAddBtn").textContent = "Update Entry (S.No " + (r.s_no ?? "") + ")";
+      document.getElementById("entriesCard").scrollIntoView({ behavior: "smooth" });
+    });
   });
   document.getElementById("totalCount").textContent = rows.length;
   document.getElementById("totalDelivered").textContent = totalDelivered;

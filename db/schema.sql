@@ -190,6 +190,10 @@ drop policy if exists delivery_trips_update on delivery_trips;
 create policy delivery_trips_update on delivery_trips for update
   using (driver_id = auth.uid() or is_office_role() or is_ops_role());
 
+drop policy if exists delivery_trips_delete on delivery_trips;
+create policy delivery_trips_delete on delivery_trips for delete
+  using (driver_id = auth.uid() or is_office_role());
+
 create table if not exists delivery_entries (
   id            uuid primary key default gen_random_uuid(),
   trip_id       uuid not null references delivery_trips(id) on delete cascade,
@@ -797,6 +801,10 @@ create policy driver_sheets_insert on driver_sheets for insert
 
 drop policy if exists driver_sheets_update on driver_sheets;
 create policy driver_sheets_update on driver_sheets for update
+  using (driver_id = auth.uid() or is_office_role());
+
+drop policy if exists driver_sheets_delete on driver_sheets;
+create policy driver_sheets_delete on driver_sheets for delete
   using (driver_id = auth.uid() or is_office_role());
 
 -- =========================================================

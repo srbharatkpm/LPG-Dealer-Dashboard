@@ -270,25 +270,86 @@ async function loadCustomers() {
     .map((c) => `<option value="${c.id}">${escapeHtml(c.name)} (${escapeHtml(c.consumer_no || "-")})</option>`)
     .join("");
 
-  const allTxns = await lpgCloud.select("credit_transactions");
+  const allTxns = await lpgCloud.select("credit_transactions", { order: { column: "created_at", ascending: false } });
   const balances = {};
   allTxns.forEach((t) => {
     const sign = t.type === "sale" ? 1 : -1;
     balances[t.customer_id] = (balances[t.customer_id] || 0) + sign * Number(t.amount || 0);
   });
+  const nameById = {};
+  customersCache.forEach((c) => (nameById[c.id] = c.name));
 
+  // customers: editable name/phone in place, delete removes their txns too
   const body = document.getElementById("customersBody");
   body.innerHTML = "";
   customersCache.forEach((c) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${escapeHtml(c.consumer_no)}</td>
-      <td>${escapeHtml(c.name)}</td>
-      <td>${escapeHtml(c.phone)}</td>
+      <td><input type="text" data-cc-name="${c.id}" value="${escapeHtml(c.name)}" /></td>
+      <td><input type="text" data-cc-phone="${c.id}" value="${escapeHtml(c.phone)}" /></td>
       <td>${fmt(balances[c.id] || 0)}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn small" data-cc-save="${c.id}">Save</button>
+        <button class="btn small danger" data-cc-del="${c.id}">Delete</button>
+      </td>
     `;
     body.appendChild(tr);
   });
+  body.querySelectorAll("[data-cc-save]").forEach((b) =>
+    b.addEventListener("click", async () => {
+      const id = b.dataset.ccSave;
+      try {
+        await lpgCloud.update("credit_customers", id, {
+          name: body.querySelector(`[data-cc-name="${id}"]`).value.trim(),
+          phone: body.querySelector(`[data-cc-phone="${id}"]`).value.trim(),
+        });
+        showMsg("Customer updated.", "ok");
+        await loadCustomers();
+      } catch (err) {
+        showMsg(err.message || "Could not update the customer.", "error");
+      }
+    })
+  );
+  body.querySelectorAll("[data-cc-del]").forEach((b) =>
+    b.addEventListener("click", async () => {
+      if (!confirm("Delete this customer and their entire credit history?")) return;
+      try {
+        await lpgCloud.remove("credit_customers", b.dataset.ccDel);
+        showMsg("Customer deleted.", "ok");
+        await loadCustomers();
+      } catch (err) {
+        showMsg(err.message || "Could not delete the customer.", "error");
+      }
+    })
+  );
+
+  // recent transactions with delete (wrong entries happen)
+  const txnBody = document.getElementById("creditTxnBody");
+  txnBody.innerHTML = "";
+  allTxns.slice(0, 25).forEach((t) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${t.entry_date}</td>
+      <td>${escapeHtml(nameById[t.customer_id] || "—")}</td>
+      <td>${t.type === "sale" ? "Sale" : "Payment"}</td>
+      <td>${escapeHtml(t.product)}</td>
+      <td>${fmt(t.amount)}</td>
+      <td><button class="btn small danger" data-txn-del="${t.id}">Delete</button></td>
+    `;
+    txnBody.appendChild(tr);
+  });
+  txnBody.querySelectorAll("[data-txn-del]").forEach((b) =>
+    b.addEventListener("click", async () => {
+      try {
+        await lpgCloud.remove("credit_transactions", b.dataset.txnDel);
+        showMsg("Transaction deleted.", "ok");
+        await loadCustomers();
+      } catch (err) {
+        showMsg(err.message || "Could not delete the transaction.", "error");
+      }
+    })
+  );
 }
 
 document.getElementById("customerForm").addEventListener("submit", async (e) => {

@@ -56,6 +56,25 @@ Deno.serve(async (req: Request) => {
   }
 
   const body = await req.json().catch(() => ({}));
+
+  // action: "delete" — remove a staff member's login entirely.
+  // The owner account itself can never be deleted this way.
+  if (body.action === "delete") {
+    const targetId = String(body.user_id || "");
+    if (!targetId) return json({ error: "user_id is required." }, 400);
+    const adminDel = createClient(supabaseUrl, serviceKey);
+    const { data: target } = await adminDel
+      .from("profiles")
+      .select("role, full_name")
+      .eq("id", targetId)
+      .maybeSingle();
+    if (!target) return json({ error: "No such user." }, 404);
+    if (target.role === "owner") return json({ error: "The owner account cannot be deleted." }, 403);
+    const { error: delErr } = await adminDel.auth.admin.deleteUser(targetId);
+    if (delErr) return json({ error: delErr.message }, 400);
+    return json({ ok: true, deleted: target.full_name });
+  }
+
   const full_name = String(body.full_name || "").trim();
   const mobile = String(body.mobile || "").replace(/\D/g, "").slice(-10);
   const role = String(body.role || "pending");
