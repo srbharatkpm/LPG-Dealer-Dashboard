@@ -50,6 +50,7 @@ const NAV_ITEMS = [
   { href: "finance.html", label: "Accounts", roles: ["owner", "manager", "accounts"] },
   { href: "operations.html", label: "Operations", roles: ["owner", "manager"] },
   { href: "followups.html", label: "Follow-ups", roles: ["owner", "manager", "accounts"] },
+  { href: "settings.html", label: "Settings", roles: ["owner", "manager"] },
 ];
 
 const ENTRY_ITEMS = [

@@ -404,78 +404,7 @@ async function loadPL() {
   document.getElementById("plMonth").textContent = fmt(mRevenue - mExpenses);
 }
 
-// ---------- Team (Owner only) ----------
-async function loadTeam() {
-  const rows = await lpgCloud.select("profiles", { order: { column: "full_name", ascending: true } });
-  const body = document.getElementById("teamBody");
-  body.innerHTML = "";
-  rows.forEach((r) => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${escapeHtml(r.full_name)}</td>
-      <td>${escapeHtml(r.phone)}</td>
-      <td>${escapeHtml(r.vehicle_number)} ${escapeHtml(r.line)}</td>
-      <td>
-        <select data-id="${r.id}" class="roleSelect">
-          <option value="pending" ${r.role === "pending" ? "selected" : ""}>Pending — no access</option>
-          <option value="owner" ${r.role === "owner" ? "selected" : ""}>Owner</option>
-          <option value="manager" ${r.role === "manager" ? "selected" : ""}>Manager</option>
-          <option value="accounts" ${r.role === "accounts" ? "selected" : ""}>Accounts</option>
-          <option value="staff" ${r.role === "staff" ? "selected" : ""}>Staff</option>
-          <option value="driver" ${r.role === "driver" ? "selected" : ""}>Delivery Boy</option>
-        </select>
-      </td>
-      <td><button class="btn small" data-save="${r.id}">Save</button></td>
-    `;
-    body.appendChild(tr);
-  });
-  body.querySelectorAll("button[data-save]").forEach((b) => {
-    b.addEventListener("click", async () => {
-      const id = b.getAttribute("data-save");
-      const sel = body.querySelector(`select[data-id="${id}"]`);
-      try {
-        await lpgCloud.update("profiles", id, { role: sel.value });
-        showMsg("Role updated.", "ok");
-      } catch (err) {
-        showMsg(err.message || "Could not update role.", "error");
-      }
-    });
-  });
-}
-
-// ---------- Create a staff login (owner only) ----------
-document.getElementById("createUserForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const out = document.getElementById("cuMsg");
-  const btn = document.getElementById("cuBtn");
-  out.className = "msg hidden";
-  btn.disabled = true;
-  try {
-    const mobile = document.getElementById("cuMobile").value.replace(/\D/g, "").slice(-10);
-    if (mobile.length !== 10) throw new Error("Mobile number must be 10 digits.");
-    const password = document.getElementById("cuPassword").value;
-
-    await lpgCloud.callFunction("create-team-user", {
-      full_name: document.getElementById("cuName").value.trim(),
-      mobile,
-      role: document.getElementById("cuRole").value,
-      password,
-      vehicle_number: document.getElementById("cuVehicle").value.trim(),
-      line: document.getElementById("cuLine").value.trim(),
-    });
-
-    out.className = "msg ok";
-    out.textContent = `Login created. Tell them: mobile ${mobile}, password ${password}.`;
-    document.getElementById("createUserForm").reset();
-    document.getElementById("cuPassword").value = "lpg@1234";
-    await loadTeam();
-  } catch (err) {
-    out.className = "msg error";
-    out.textContent = err.message || "Could not create the login.";
-  } finally {
-    btn.disabled = false;
-  }
-});
+// Staff logins & role management moved to settings.html (js/settings.js).
 
 // ---------- Role-based visibility ----------
 // Owner and Manager both get the full set of tabs. What still separates
@@ -483,7 +412,7 @@ document.getElementById("createUserForm").addEventListener("submit", async (e) =
 // the owner account itself, and the owner role is pinned to one email.
 function applyRoleVisibility(role) {
   const full = role === "owner" || role === "manager";
-  ["tabTargets", "tabBroadcast", "tabPL", "tabTeam"].forEach((id) => {
+  ["tabTargets", "tabBroadcast", "tabPL"].forEach((id) => {
     document.getElementById(id).style.display = full ? "" : "none";
   });
 }
@@ -502,7 +431,6 @@ async function loadAllForDate() {
     await loadTargets();
     await loadBroadcastTab();
     await loadPL();
-    await loadTeam();
   }
 }
 
