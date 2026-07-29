@@ -116,6 +116,11 @@ function recompute() {
   }
 }
 
+function sheetStatus() {
+  if (!sheetRow) return "draft";
+  return sheetRow.status || (sheetRow.submitted ? "submitted" : "draft");
+}
+
 function renderAll() {
   document.getElementById("shVehicle").value = data.vehicle || shProfile.vehicle_number || "";
   document.getElementById("shLine").value = data.line || shProfile.line || "";
@@ -124,10 +129,25 @@ function renderAll() {
   renderDebits();
   renderDenoms();
   recompute();
-  document.getElementById("submitState").textContent =
-    sheetRow && sheetRow.submitted ? "submitted" : "not submitted";
-  document.getElementById("submitState").className =
-    "pill " + (sheetRow && sheetRow.submitted ? "green" : "amber");
+
+  const status = sheetStatus();
+  const pill = document.getElementById("submitState");
+  pill.textContent =
+    status === "approved" ? "approved by accounts" :
+    status === "submitted" ? "pending verification" : "draft — not submitted";
+  pill.className = "pill " + (status === "approved" ? "green" : "amber");
+
+  // Once accounts has approved, the sheet is part of the day's account —
+  // the driver can look but not change it. Accounts can reopen it.
+  const locked = status === "approved";
+  document.querySelectorAll("main input, main select").forEach((el) => {
+    if (el.id !== "entryDate") el.disabled = locked;
+  });
+  document.getElementById("saveBtn").disabled = locked;
+  document.getElementById("submitBtn").disabled = locked;
+  if (locked) {
+    showShMsg("This sheet is approved and locked. Ask the office to reopen it if something is wrong.", "ok");
+  }
 }
 
 ["shVehicle", "shLine"].forEach((id) =>
@@ -155,9 +175,14 @@ async function loadSheet() {
 }
 
 async function saveSheet(submit) {
+  if (sheetStatus() === "approved") {
+    showShMsg("This sheet is approved and locked.", "error");
+    return;
+  }
   try {
     data.vehicle = document.getElementById("shVehicle").value.trim();
     data.line = document.getElementById("shLine").value.trim();
+    const status = submit ? "submitted" : sheetStatus();
     const rows = await lpgCloud.upsert(
       "driver_sheets",
       [
@@ -166,7 +191,8 @@ async function saveSheet(submit) {
           sheet_date: currentDate(),
           driver_name: shProfile.full_name,
           data,
-          submitted: submit ? true : sheetRow ? sheetRow.submitted : false,
+          submitted: status !== "draft",
+          status,
           updated_at: new Date().toISOString(),
         },
       ],
@@ -174,7 +200,10 @@ async function saveSheet(submit) {
     );
     sheetRow = rows[0] || sheetRow;
     renderAll();
-    showShMsg(submit ? "Sheet submitted to the office." : "Sheet saved.", "ok");
+    showShMsg(
+      submit ? "Sheet submitted — pending verification by the office." : "Sheet saved.",
+      "ok"
+    );
   } catch (err) {
     showShMsg(err.message || "Could not save the sheet.", "error");
   }

@@ -789,6 +789,18 @@ create table if not exists driver_sheets (
   unique (driver_id, sheet_date)
 );
 
+-- Approval lifecycle: draft (driver still filling) -> submitted (pending
+-- verification, visible on the office Day Sheet) -> approved (accounts
+-- has collected the cash; the sheet's sales auto-flow into the day's
+-- Total Sales and the driver's copy locks).
+alter table driver_sheets add column if not exists status text not null default 'draft'
+  check (status in ('draft', 'submitted', 'approved'));
+alter table driver_sheets add column if not exists approved_by uuid references profiles(id);
+alter table driver_sheets add column if not exists approved_at timestamptz;
+
+-- older rows recorded submission as a boolean only
+update driver_sheets set status = 'submitted' where submitted and status = 'draft';
+
 alter table driver_sheets enable row level security;
 
 drop policy if exists driver_sheets_select on driver_sheets;

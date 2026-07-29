@@ -59,3 +59,16 @@ function dsTotals(data) {
   // the driver should physically hand over is sale minus all debits.
   return { sale, debits, counted, delivered, expectedCash: sale - debits };
 }
+
+// Per-item {qty, amount} for one sheet — used by the Day Sheet to fold
+// APPROVED driver sheets into the day's Total Sales item by item.
+function dsSaleBreakdown(data) {
+  const out = {};
+  DS_SALE_ITEMS.forEach((it) => {
+    const row = (data.sale || {})[it] || {};
+    const q = dsNum(row.qty);
+    if (!q) return;
+    out[it] = { qty: q, amount: q * dsNum(row.rate) };
+  });
+  return out;
+}

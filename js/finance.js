@@ -115,10 +115,11 @@ async function loadFinanceDash() {
       cum.expectedCash += t.expectedCash;
       cum.counted += t.counted;
       const ok = Math.abs(t.expectedCash - t.counted) <= 0.5;
+      const status = s.status || (s.submitted ? "submitted" : "draft");
       return (
         "<tr><td>" + escapeHtml(s.driver_name || "—") + "</td>" +
-        '<td><span class="pill ' + (s.submitted ? "green" : "amber") + '">' +
-        (s.submitted ? "submitted" : "draft") + "</span></td>" +
+        '<td><span class="pill ' + (status === "approved" ? "green" : "amber") + '">' +
+        (status === "submitted" ? "pending" : status) + "</span></td>" +
         "<td>" + qty(t.delivered) + "</td>" +
         "<td>" + fmt(t.sale) + "</td>" +
         "<td>" + fmt(t.debits) + "</td>" +

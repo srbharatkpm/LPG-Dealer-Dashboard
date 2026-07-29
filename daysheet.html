@@ -95,6 +95,13 @@
     <!-- ── CREDIT ── -->
     <div>
       <h3>Credit</h3>
+      <div class="sec">
+        <h4>Driver Sheets — Approved Sales (auto)</h4>
+        <div class="table-wrap"><table id="approvedSalesTable">
+          <thead><tr><th>Item</th><th>Qty</th><th class="amt">Amount</th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+      </div>
       <div class="sec" data-sec="domestic"></div>
       <div class="sec" data-sec="commercial"></div>
       <div class="sec" data-sec="nc"></div>
@@ -119,6 +126,14 @@
     <!-- ── SUMMARY ── -->
     <div>
       <h3>Summary</h3>
+
+      <div class="sec sum">
+        <h4>Driver Sheets — Verification</h4>
+        <div class="table-wrap"><table id="sheetApprovalTable">
+          <thead><tr><th>Driver</th><th class="amt">Sale</th><th class="amt">Cash</th><th>Status</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+      </div>
 
       <div class="sec sum">
         <h4>Delivery Boy — Handover</h4>
@@ -158,6 +173,7 @@
 <script src="js/config.js"></script>
 <script src="js/cloud.js"></script>
 <script src="js/common.js"></script>
+<script src="js/sheetmath.js"></script>
 <script src="js/daysheet.js"></script>
 <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");</script>
 </body>

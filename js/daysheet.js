@@ -244,7 +244,8 @@ function secTotal(keys) {
 }
 
 function recompute() {
-  const credit = secTotal(CREDIT_SECS);
+  // manual credit sections PLUS the approved driver sheets' sales
+  const credit = secTotal(CREDIT_SECS) + approvedSaleTotal;
   const debit = secTotal(DEBIT_SECS);
   const online = secTotal(["online"]);
   const counted = DENOMS.reduce((s, [k, v]) => s + (state.denoms[k] || 0) * v, 0);
@@ -299,6 +300,98 @@ async function loadHandover() {
     '<tr class="tot"><td>Total</td><td class="amt">' + fmtN(total) + "</td></tr>";
 }
 
+// ---------- driver sheet verification & approval ----------
+// Submitted sheets land here automatically; Approve folds their sales
+// into this day sheet's Credit (see approvedAgg / recompute).
+let approvedAgg = {};      // item -> {qty, amount}, from APPROVED sheets only
+let approvedSaleTotal = 0;
+
+function sheetStatusOf(s) {
+  return s.status || (s.submitted ? "submitted" : "draft");
+}
+
+async function loadDriverSheets() {
+  const date = document.getElementById("entryDate").value;
+  const sheets = await lpgCloud.select("driver_sheets", { eq: { sheet_date: date } });
+
+  approvedAgg = {};
+  approvedSaleTotal = 0;
+  sheets.filter((s) => sheetStatusOf(s) === "approved").forEach((s) => {
+    const parts = dsSaleBreakdown(s.data || {});
+    Object.entries(parts).forEach(([item, p]) => {
+      const slot = (approvedAgg[item] = approvedAgg[item] || { qty: 0, amount: 0 });
+      slot.qty += p.qty;
+      slot.amount += p.amount;
+      approvedSaleTotal += p.amount;
+    });
+  });
+
+  // verification list
+  const tbody = document.querySelector("#sheetApprovalTable tbody");
+  tbody.innerHTML = sheets.length
+    ? sheets
+        .map((s) => {
+          const t = dsTotals(s.data || {});
+          const status = sheetStatusOf(s);
+          const label =
+            status === "approved" ? '<span class="pill green">approved</span>' :
+            status === "submitted" ? '<span class="pill amber">pending</span>' :
+            '<span class="pill amber">draft</span>';
+          const action =
+            status === "approved"
+              ? '<button class="btn small secondary" data-reopen="' + s.id + '">Reopen</button>'
+              : status === "submitted"
+              ? '<button class="btn small" data-approve="' + s.id + '">Approve</button>'
+              : "";
+          return (
+            "<tr><td>" + escapeHtml(s.driver_name || "—") + "</td>" +
+            '<td class="amt">' + fmtN(t.sale) + "</td>" +
+            '<td class="amt">' + fmtN(t.counted) + "</td>" +
+            "<td>" + label + "</td><td>" + action + "</td></tr>"
+          );
+        })
+        .join("")
+    : '<tr><td colspan="5" style="color:var(--muted);">No driver sheets for this date.</td></tr>';
+
+  tbody.querySelectorAll("[data-approve]").forEach((b) =>
+    b.addEventListener("click", async () => {
+      await lpgCloud.update("driver_sheets", b.dataset.approve, {
+        status: "approved",
+        approved_by: dsProfile.id,
+        approved_at: new Date().toISOString(),
+      });
+      await loadDriverSheets();
+      recompute();
+    })
+  );
+  tbody.querySelectorAll("[data-reopen]").forEach((b) =>
+    b.addEventListener("click", async () => {
+      await lpgCloud.update("driver_sheets", b.dataset.reopen, {
+        status: "submitted",
+        approved_by: null,
+        approved_at: null,
+      });
+      await loadDriverSheets();
+      recompute();
+    })
+  );
+
+  // approved-sales breakdown in the Credit column
+  const salesBody = document.querySelector("#approvedSalesTable tbody");
+  const items = Object.entries(approvedAgg);
+  salesBody.innerHTML =
+    (items.length
+      ? items
+          .map(
+            ([item, p]) =>
+              "<tr><td>" + escapeHtml(item) + "</td><td>" + fmtN(p.qty) +
+              '</td><td class="amt">' + fmtN(p.amount) + "</td></tr>"
+          )
+          .join("")
+      : '<tr><td colspan="3" style="color:var(--muted);">No approved sheets yet.</td></tr>') +
+    '<tr class="tot"><td colspan="2">Total</td><td class="amt">' + fmtN(approvedSaleTotal) + "</td></tr>";
+}
+
 // ---------- load & save ----------
 function renderAll() {
   Object.keys(SECTIONS).forEach(renderSection);
@@ -325,6 +418,8 @@ async function loadSheet() {
   }
   renderAll();
   await loadHandover();
+  await loadDriverSheets();
+  recompute();
 }
 
 document.getElementById("saveBtn").addEventListener("click", async () => {
