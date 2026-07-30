@@ -124,6 +124,20 @@
     </div>
   </div>
 
+  <div class="card">
+    <h2>Daily Registers Checklist <span class="pill amber" id="regProgress">0 / 7</span></h2>
+    <p style="font-size:13px;color:var(--muted);margin-top:-6px;">
+      Tick each register once it is written up and verified — all seven before day end.
+    </p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th style="width:40px;">Done</th><th>Register</th><th>Ticked By</th><th>Time</th></tr></thead>
+        <tbody id="registerBody"></tbody>
+      </table>
+    </div>
+    <div id="regWarn" class="msg hidden" style="margin-top:10px;"></div>
+  </div>
+
   <div class="card alerts">
     <h2>Needs Attention</h2>
     <div id="alertsList"></div>

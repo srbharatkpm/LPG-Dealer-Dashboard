@@ -825,6 +825,30 @@ create policy driver_sheets_delete on driver_sheets for delete
   using (driver_id = auth.uid() or is_office_role());
 
 -- =========================================================
+-- 6g. register_checklist — the statutory/operational registers the
+--     manager & office staff must maintain and tick off DAILY before
+--     day end (Stock, DPR, Defective DPR, SV/TV, Complaint, PDI, SQC).
+--     One row per register per date, recording who ticked and when.
+-- =========================================================
+create table if not exists register_checklist (
+  id          uuid primary key default gen_random_uuid(),
+  entry_date  date not null default current_date,
+  item_key    text not null,
+  checked     boolean not null default false,
+  checked_by  uuid references profiles(id),
+  checked_at  timestamptz,
+  notes       text,
+  unique (entry_date, item_key)
+);
+
+alter table register_checklist enable row level security;
+
+drop policy if exists register_checklist_all on register_checklist;
+create policy register_checklist_all on register_checklist for all
+  using (is_office_role())
+  with check (is_office_role());
+
+-- =========================================================
 -- 7. Table privileges (GRANTs)
 --
 -- GRANT and RLS are two separate gates: Postgres checks the table

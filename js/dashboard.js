@@ -153,8 +153,92 @@ async function loadDashboard() {
     : '<p style="font-size:13px;color:var(--muted);">Nothing needs attention right now.</p>';
 }
 
+// ---------- Daily registers checklist ----------
+// The registers the manager/office staff must write up and tick every
+// day before day end. item_key is stored; label is display-only.
+const REGISTERS = [
+  ["stock", "Stock Registers"],
+  ["dpr", "DPR Register"],
+  ["defective_dpr", "Defective DPR Register"],
+  ["sv_tv", "SV / TV Register"],
+  ["complaint", "Complaint Register"],
+  ["pdi", "PDI Register"],
+  ["sqc", "SQC Register"],
+];
+
+let dashProfile = null;
+let teamNames = {};
+
+async function loadRegisterChecklist() {
+  const date = document.getElementById("entryDate").value;
+  const [rows, team] = await Promise.all([
+    lpgCloud.select("register_checklist", { eq: { entry_date: date } }),
+    lpgCloud.select("profiles", { columns: "id, full_name" }),
+  ]);
+  teamNames = {};
+  team.forEach((p) => (teamNames[p.id] = p.full_name));
+  const byKey = {};
+  rows.forEach((r) => (byKey[r.item_key] = r));
+
+  const body = document.getElementById("registerBody");
+  body.innerHTML = REGISTERS.map(([key, label]) => {
+    const r = byKey[key];
+    const done = r && r.checked;
+    return (
+      "<tr><td style='text-align:center;'>" +
+      '<input type="checkbox" data-reg="' + key + '"' + (done ? " checked" : "") + " /></td>" +
+      "<td" + (done ? "" : ' style="font-weight:600;"') + ">" + escapeHtml(label) + "</td>" +
+      "<td>" + (done ? escapeHtml(teamNames[r.checked_by] || "—") : "—") + "</td>" +
+      "<td>" + (done && r.checked_at ? new Date(r.checked_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "—") + "</td></tr>"
+    );
+  }).join("");
+
+  body.querySelectorAll("input[data-reg]").forEach((cb) =>
+    cb.addEventListener("change", async () => {
+      try {
+        await lpgCloud.upsert(
+          "register_checklist",
+          [
+            {
+              entry_date: date,
+              item_key: cb.dataset.reg,
+              checked: cb.checked,
+              checked_by: cb.checked ? dashProfile.id : null,
+              checked_at: cb.checked ? new Date().toISOString() : null,
+            },
+          ],
+          "entry_date,item_key"
+        );
+        await loadRegisterChecklist();
+      } catch (err) {
+        const msg = document.getElementById("msg");
+        msg.className = "msg error";
+        msg.textContent = err.message || "Could not save the tick.";
+      }
+    })
+  );
+
+  const doneCount = REGISTERS.filter(([k]) => byKey[k] && byKey[k].checked).length;
+  const prog = document.getElementById("regProgress");
+  prog.textContent = doneCount + " / " + REGISTERS.length;
+  prog.className = "pill " + (doneCount === REGISTERS.length ? "green" : "amber");
+
+  const warn = document.getElementById("regWarn");
+  if (doneCount === REGISTERS.length) {
+    warn.className = "msg ok";
+    warn.textContent = "All registers ticked for the day.";
+  } else {
+    warn.className = "msg error";
+    warn.textContent = (REGISTERS.length - doneCount) + " register(s) still pending before day end.";
+  }
+}
+
 initDashboard({
   current: "dashboard.html",
   roles: ["owner", "manager", "accounts"],
-  load: loadDashboard,
+  load: async (profile) => {
+    dashProfile = profile;
+    await loadDashboard();
+    await loadRegisterChecklist();
+  },
 });
