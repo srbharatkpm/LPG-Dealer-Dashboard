@@ -38,6 +38,7 @@ async function loadDashboard() {
   const [
     sales, debitsRows, manualRows, weekSales, mSales, trips,
     bookings, attendance, monthlyTarget, customers, txns, vehicles, stock,
+    driverSheets, leaderboard,
   ] = await Promise.all([
     lpgCloud.select("godown_vehicle_sales", { eq: { entry_date: date } }),
     lpgCloud.select("godown_debits", { eq: { entry_date: date } }),
@@ -52,6 +53,8 @@ async function loadDashboard() {
     lpgCloud.select("credit_transactions"),
     lpgCloud.select("vehicles"),
     lpgCloud.select("godown_stock", { eq: { entry_date: date } }),
+    lpgCloud.select("driver_sheets", { eq: { sheet_date: date }, columns: "id, status, submitted" }),
+    lpgCloud.rpc("driver_leaderboard", { p_start: mStart, p_end: date }).catch(() => []),
   ]);
 
   // --- today tiles ---
@@ -125,6 +128,47 @@ async function loadDashboard() {
   document.getElementById("kPresent").textContent = attendance.length
     ? attendance.filter((a) => a.status === "present").length + " / " + attendance.length
     : "—";
+
+  // --- stock snapshot (composite view) ---
+  const stockByKey = {};
+  stock.forEach((r) => (stockByKey[r.product + "|" + r.condition] = num(r.quantity)));
+  const snapshotSpec = [
+    ["14.2 Kg Full", "14.2 Kg Domestic|full", "credit"],
+    ["14.2 Kg Empty", "14.2 Kg Domestic|empty", ""],
+    ["19 Kg Full", "19 Kg Commercial|full", "credit"],
+    ["5 Kg BMCG Full", "5 Kg BMCG|full", ""],
+    ["DPR Sound", "DPR (Regulator)|sound", ""],
+    ["DPR Defective", "DPR (Regulator)|defective", "debit"],
+  ];
+  document.getElementById("stockSnapshot").innerHTML = snapshotSpec
+    .map(
+      ([label, key, cls]) =>
+        '<div class="tile ' + cls + '"><div class="label">' + label + '</div><div class="value">' +
+        qty(stockByKey[key] || 0) + "</div></div>"
+    )
+    .join("");
+
+  // --- drivers (composite view) ---
+  const statusOf = (s) => s.status || (s.submitted ? "submitted" : "draft");
+  document.getElementById("drvSubmitted").textContent =
+    driverSheets.filter((s) => statusOf(s) !== "draft").length;
+  document.getElementById("drvApproved").textContent =
+    driverSheets.filter((s) => statusOf(s) === "approved").length;
+  document.getElementById("drvPending").textContent =
+    driverSheets.filter((s) => statusOf(s) === "submitted").length;
+
+  const board = (leaderboard || []).slice().sort((a, b) => num(b.delivered) - num(a.delivered));
+  document.getElementById("drvLeaderBody").innerHTML = board.length
+    ? board
+        .map((r, i) => {
+          const medal = i === 0 ? "🥇 " : i === 1 ? "🥈 " : i === 2 ? "🥉 " : "";
+          return (
+            "<tr><td>" + medal + "#" + (i + 1) + "</td><td>" + escapeHtml(r.driver_name) +
+            "</td><td>" + qty(num(r.delivered)) + "</td></tr>"
+          );
+        })
+        .join("")
+    : '<tr><td colspan="3" style="color:var(--muted);">No driver sheets this month yet.</td></tr>';
 
   // --- alerts ---
   const alerts = [];

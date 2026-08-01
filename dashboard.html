@@ -115,6 +115,26 @@
   </div>
 
   <div class="card">
+    <h2>Stock Right Now</h2>
+    <div class="totals" id="stockSnapshot"></div>
+  </div>
+
+  <div class="card">
+    <h2>Drivers</h2>
+    <div class="totals" style="margin-bottom:12px;">
+      <div class="tile"><div class="label">Sheets Submitted Today</div><div class="value" id="drvSubmitted">0</div></div>
+      <div class="tile credit"><div class="label">Approved Today</div><div class="value" id="drvApproved">0</div></div>
+      <div class="tile debit"><div class="label">Awaiting Approval</div><div class="value" id="drvPending">0</div></div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Rank</th><th>Driver</th><th>Delivered (MTD)</th></tr></thead>
+        <tbody id="drvLeaderBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
     <h2>Month so far</h2>
     <div class="totals">
       <div class="tile credit"><div class="label">Revenue (MTD)</div><div class="value" id="kMtd">₹0</div></div>

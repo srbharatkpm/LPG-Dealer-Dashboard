@@ -57,9 +57,9 @@ const ENTRY_ITEMS = [
   { href: "accounts.html", label: "Ledger Entry", roles: ["owner", "manager", "accounts"] },
   { href: "daysheet.html", label: "Day Sheet", roles: ["owner", "manager", "accounts"] },
   { href: "godown.html", label: "Godown Entry", roles: ["staff"] },
+  { href: "driverdash.html", label: "My Dashboard", roles: ["driver"] },
   { href: "delivery.html", label: "Trip Sheet", roles: ["driver"] },
   { href: "driversheet.html", label: "Daily Sheet", roles: ["driver"] },
-  { href: "driverdash.html", label: "My Dashboard", roles: ["driver"] },
 ];
 
 function renderNav(currentHref, role) {
