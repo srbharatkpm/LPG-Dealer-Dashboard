@@ -825,6 +825,29 @@ create policy driver_sheets_delete on driver_sheets for delete
   using (driver_id = auth.uid() or is_office_role());
 
 -- =========================================================
+-- 6f2. office_sales — counter sales made directly at the office by
+--      owner/manager/accounts. Each row folds into the Day Sheet's
+--      Credit automatically and moves godown stock (full->empty swap
+--      for cylinders) exactly like an approved driver sheet does.
+-- =========================================================
+create table if not exists office_sales (
+  id          uuid primary key default gen_random_uuid(),
+  entry_date  date not null default current_date,
+  product     text not null,
+  qty         numeric not null default 1,
+  rate        numeric not null default 0,
+  created_by  uuid references profiles(id),
+  created_at  timestamptz not null default now()
+);
+
+alter table office_sales enable row level security;
+
+drop policy if exists office_sales_all on office_sales;
+create policy office_sales_all on office_sales for all
+  using (is_office_role())
+  with check (is_office_role());
+
+-- =========================================================
 -- 6g. register_checklist — the statutory/operational registers the
 --     manager & office staff must maintain and tick off DAILY before
 --     day end (Stock, DPR, Defective DPR, SV/TV, Complaint, PDI, SQC).

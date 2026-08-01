@@ -46,7 +46,7 @@ function delta(value, goodWhenUp) {
 
 const NAV_ITEMS = [
   { href: "dashboard.html", label: "Dashboard", roles: ["owner", "manager", "accounts"] },
-  { href: "stock.html", label: "Stock", roles: ["owner", "manager", "staff"] },
+  { href: "stock.html", label: "Stock", roles: ["owner", "manager", "accounts", "staff"] },
   { href: "finance.html", label: "Accounts", roles: ["owner", "manager", "accounts"] },
   { href: "operations.html", label: "Operations", roles: ["owner", "manager"] },
   { href: "followups.html", label: "Follow-ups", roles: ["owner", "manager", "accounts"] },

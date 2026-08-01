@@ -98,7 +98,7 @@ const ADJUST_CONFIG = [
 ];
 
 async function loadAdjust(profile) {
-  if (profile.role !== "owner") return;
+  if (!["owner", "manager", "accounts"].includes(profile.role)) return;
   document.getElementById("adjustCard").style.display = "";
   const date = document.getElementById("entryDate").value;
   const rows = await lpgCloud.select("godown_stock", { eq: { entry_date: date } });
@@ -154,7 +154,7 @@ async function loadAdjust(profile) {
 
 initDashboard({
   current: "stock.html",
-  roles: ["owner", "manager", "staff"],
+  roles: ["owner", "manager", "accounts", "staff"],
   load: async (profile) => {
     await loadStockDash();
     await loadAdjust(profile);

@@ -244,8 +244,8 @@ function secTotal(keys) {
 }
 
 function recompute() {
-  // manual credit sections PLUS the approved driver sheets' sales
-  const credit = secTotal(CREDIT_SECS) + approvedSaleTotal;
+  // manual credit sections PLUS approved driver sheets PLUS office counter sales
+  const credit = secTotal(CREDIT_SECS) + approvedSaleTotal + officeSaleTotal;
   const debit = secTotal(DEBIT_SECS);
   const online = secTotal(["online"]);
   const counted = DENOMS.reduce((s, [k, v]) => s + (state.denoms[k] || 0) * v, 0);
@@ -281,6 +281,117 @@ function recompute() {
 ["wOpening", "wBank", "wHandOver"].forEach((id) =>
   document.getElementById(id).addEventListener("input", recompute)
 );
+
+// ---------- office counter sales (add / modify / delete) ----------
+// Every operation moves godown stock like an approved driver sheet:
+// cylinders swap full->empty, DPR comes from sound, accessories count
+// down. Edit reverses the old row's movement and applies the new one.
+let officeSaleTotal = 0;
+
+function officeStockRules(product) {
+  if (product === "DPR (Regulator)") return [["sound", -1]];
+  if (["Hose", "Lighter", "Book", "Stove"].includes(product)) return [["qty", -1]];
+  return [["full", -1], ["empty", +1]]; // cylinders
+}
+
+async function applyOfficeSaleDelta(row, sign) {
+  const q = num(row.qty);
+  if (!q) return;
+  const date = row.entry_date;
+  const existing = await lpgCloud.select("godown_stock", { eq: { entry_date: date } });
+  const byKey = {};
+  existing.forEach((r) => (byKey[r.product + "|" + r.condition] = r));
+  const rows = officeStockRules(row.product).map(([condition, dir]) => {
+    const cur = byKey[row.product + "|" + condition];
+    return {
+      entry_date: date,
+      product: row.product,
+      condition,
+      quantity: (cur ? num(cur.quantity) : 0) + sign * dir * q,
+      created_by: dsProfile.id,
+    };
+  });
+  await lpgCloud.upsert("godown_stock", rows, "entry_date,product,condition");
+}
+
+async function loadOfficeSales() {
+  const date = document.getElementById("entryDate").value;
+  const rows = await lpgCloud.select("office_sales", {
+    eq: { entry_date: date },
+    order: { column: "created_at", ascending: true },
+  });
+  const byId = {};
+  rows.forEach((r) => (byId[r.id] = r));
+  officeSaleTotal = rows.reduce((s, r) => s + num(r.qty) * num(r.rate), 0);
+
+  const tbody = document.querySelector("#officeSalesTable tbody");
+  tbody.innerHTML =
+    rows
+      .map(
+        (r) =>
+          "<tr><td>" + escapeHtml(r.product) + "</td>" +
+          '<td><input type="number" step="1" style="width:52px;" data-os-qty="' + r.id + '" value="' + num(r.qty) + '" /></td>' +
+          '<td><input type="number" step="0.01" style="width:70px;" data-os-rate="' + r.id + '" value="' + num(r.rate) + '" /></td>' +
+          '<td class="amt">' + fmtN(num(r.qty) * num(r.rate)) + "</td>" +
+          '<td style="white-space:nowrap;" class="no-print">' +
+          '<button class="btn small" data-os-save="' + r.id + '">Save</button> ' +
+          '<button class="btn small danger" data-os-del="' + r.id + '">×</button></td></tr>'
+      )
+      .join("") +
+    '<tr class="tot"><td colspan="3">Total Office Sales</td><td class="amt">' + fmtN(officeSaleTotal) + "</td><td></td></tr>";
+
+  tbody.querySelectorAll("[data-os-save]").forEach((b) =>
+    b.addEventListener("click", async () => {
+      const old = byId[b.dataset.osSave];
+      const newQty = num(tbody.querySelector('[data-os-qty="' + old.id + '"]').value);
+      const newRate = num(tbody.querySelector('[data-os-rate="' + old.id + '"]').value);
+      try {
+        await applyOfficeSaleDelta(old, -1); // undo old movement
+        await lpgCloud.update("office_sales", old.id, { qty: newQty, rate: newRate });
+        await applyOfficeSaleDelta({ ...old, qty: newQty }, +1); // apply new
+        await loadOfficeSales();
+        recompute();
+      } catch (err) {
+        document.getElementById("msg").className = "msg error";
+        document.getElementById("msg").textContent = err.message || "Could not update the sale.";
+      }
+    })
+  );
+  tbody.querySelectorAll("[data-os-del]").forEach((b) =>
+    b.addEventListener("click", async () => {
+      const row = byId[b.dataset.osDel];
+      try {
+        await lpgCloud.remove("office_sales", row.id);
+        await applyOfficeSaleDelta(row, -1);
+        await loadOfficeSales();
+        recompute();
+      } catch (err) {
+        document.getElementById("msg").className = "msg error";
+        document.getElementById("msg").textContent = err.message || "Could not delete the sale.";
+      }
+    })
+  );
+}
+
+document.getElementById("osAddBtn").addEventListener("click", async () => {
+  try {
+    const row = {
+      entry_date: document.getElementById("entryDate").value,
+      product: document.getElementById("osProduct").value,
+      qty: num(document.getElementById("osQty").value) || 1,
+      rate: num(document.getElementById("osRate").value),
+      created_by: dsProfile.id,
+    };
+    const inserted = await lpgCloud.insert("office_sales", [row]);
+    await applyOfficeSaleDelta(inserted[0] || row, +1);
+    document.getElementById("osQty").value = "1";
+    await loadOfficeSales();
+    recompute();
+  } catch (err) {
+    document.getElementById("msg").className = "msg error";
+    document.getElementById("msg").textContent = err.message || "Could not add the sale.";
+  }
+});
 
 // ---------- driver sheet verification & approval ----------
 // Submitted sheets land here automatically; Approve folds their sales
@@ -442,6 +553,7 @@ async function loadSheet() {
   }
   renderAll();
   await loadDriverSheets();
+  await loadOfficeSales();
   recompute();
 }
 
