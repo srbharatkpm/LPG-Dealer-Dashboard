@@ -144,6 +144,7 @@ async function loadDashboard() {
     .forEach((s) => alerts.push({ bad: true, text: "No FULL stock recorded for " + s.product }));
   const pendingCount = bookings.filter((b) => b.status === "booked").length;
   if (pendingCount) alerts.push({ bad: false, text: pendingCount + " booking(s) not yet assigned to a driver" });
+  if (!attendance.length) alerts.push({ bad: true, text: "Attendance not marked yet today (Operations → Attendance)" });
   if (outstanding > 0) alerts.push({ bad: false, text: "Credit customers owe " + fmt(outstanding) + " in total" });
 
   document.getElementById("alertsList").innerHTML = alerts.length
@@ -153,18 +154,27 @@ async function loadDashboard() {
     : '<p style="font-size:13px;color:var(--muted);">Nothing needs attention right now.</p>';
 }
 
-// ---------- Daily registers checklist ----------
-// The registers the manager/office staff must write up and tick every
-// day before day end. item_key is stored; label is display-only.
-const REGISTERS = [
-  ["stock", "Stock Registers"],
-  ["dpr", "DPR Register"],
-  ["defective_dpr", "Defective DPR Register"],
-  ["sv_tv", "SV / TV Register"],
-  ["complaint", "Complaint Register"],
-  ["pdi", "PDI Register"],
-  ["sqc", "SQC Register"],
+// ---------- Daily registers & day-end checklist ----------
+// Everything the manager/owner must confirm daily before day end.
+// item_key is stored; labels are display-only.
+const CHECKLIST_GROUPS = [
+  ["Registers", [
+    ["stock", "Stock Registers"],
+    ["dpr", "DPR Register"],
+    ["defective_dpr", "Defective DPR Register"],
+    ["sv_tv", "SV / TV Register"],
+    ["complaint", "Complaint Register"],
+    ["pdi", "PDI Register"],
+    ["sqc", "SQC Register"],
+  ]],
+  ["Day-End Confirmations", [
+    ["attendance_marked", "Attendance marked for all staff"],
+    ["stock_tallied", "Godown stock tallied with physical count"],
+    ["commercial_invoice", "19 Kg commercial cylinder — invoice taken"],
+    ["registers_confirmed", "Register update confirmation done"],
+  ]],
 ];
+const REGISTERS = CHECKLIST_GROUPS.flatMap(([, items]) => items);
 
 let dashProfile = null;
 let teamNames = {};
@@ -181,16 +191,22 @@ async function loadRegisterChecklist() {
   rows.forEach((r) => (byKey[r.item_key] = r));
 
   const body = document.getElementById("registerBody");
-  body.innerHTML = REGISTERS.map(([key, label]) => {
-    const r = byKey[key];
-    const done = r && r.checked;
-    return (
-      "<tr><td style='text-align:center;'>" +
-      '<input type="checkbox" data-reg="' + key + '"' + (done ? " checked" : "") + " /></td>" +
-      "<td" + (done ? "" : ' style="font-weight:600;"') + ">" + escapeHtml(label) + "</td>" +
-      "<td>" + (done ? escapeHtml(teamNames[r.checked_by] || "—") : "—") + "</td>" +
-      "<td>" + (done && r.checked_at ? new Date(r.checked_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "—") + "</td></tr>"
-    );
+  body.innerHTML = CHECKLIST_GROUPS.map(([groupLabel, items]) => {
+    const header =
+      '<tr><td colspan="4" style="background:#eef3f8;font-weight:700;color:var(--blue-dark);font-size:12px;">' +
+      escapeHtml(groupLabel) + "</td></tr>";
+    const rows = items.map(([key, label]) => {
+      const r = byKey[key];
+      const done = r && r.checked;
+      return (
+        "<tr><td style='text-align:center;'>" +
+        '<input type="checkbox" data-reg="' + key + '"' + (done ? " checked" : "") + " /></td>" +
+        "<td" + (done ? "" : ' style="font-weight:600;"') + ">" + escapeHtml(label) + "</td>" +
+        "<td>" + (done ? escapeHtml(teamNames[r.checked_by] || "—") : "—") + "</td>" +
+        "<td>" + (done && r.checked_at ? new Date(r.checked_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "—") + "</td></tr>"
+      );
+    }).join("");
+    return header + rows;
   }).join("");
 
   body.querySelectorAll("input[data-reg]").forEach((cb) =>
@@ -226,10 +242,14 @@ async function loadRegisterChecklist() {
   const warn = document.getElementById("regWarn");
   if (doneCount === REGISTERS.length) {
     warn.className = "msg ok";
-    warn.textContent = "All registers ticked for the day.";
+    warn.textContent = "Checklist complete for the day.";
   } else {
+    const missing = REGISTERS.filter(([k]) => !(byKey[k] && byKey[k].checked)).map(([, l]) => l);
     warn.className = "msg error";
-    warn.textContent = (REGISTERS.length - doneCount) + " register(s) still pending before day end.";
+    warn.textContent =
+      "Pending before day end: " +
+      missing.slice(0, 4).join(", ") +
+      (missing.length > 4 ? " + " + (missing.length - 4) + " more" : "");
   }
 }
 
