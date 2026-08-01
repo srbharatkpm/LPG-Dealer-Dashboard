@@ -59,6 +59,7 @@ const ENTRY_ITEMS = [
   { href: "godown.html", label: "Godown Entry", roles: ["staff"] },
   { href: "delivery.html", label: "Trip Sheet", roles: ["driver"] },
   { href: "driversheet.html", label: "Daily Sheet", roles: ["driver"] },
+  { href: "driverdash.html", label: "My Dashboard", roles: ["driver"] },
 ];
 
 function renderNav(currentHref, role) {

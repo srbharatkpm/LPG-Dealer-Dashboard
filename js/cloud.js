@@ -282,6 +282,13 @@ const lpgCloud = (() => {
     if (error) throw error;
   }
 
+  async function rpc(name, params) {
+    const sb = client_();
+    const { data, error } = await sb.rpc(name, params || {});
+    if (error) throw error;
+    return data;
+  }
+
   async function callFunction(name, body) {
     const sb = client_();
     const { data, error } = await sb.functions.invoke(name, { body });
@@ -319,6 +326,7 @@ const lpgCloud = (() => {
     upsert,
     update,
     remove,
+    rpc,
     callFunction,
     flushQueue,
     pendingOfflineCount,

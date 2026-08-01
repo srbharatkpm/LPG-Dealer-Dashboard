@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>My Dashboard — LPG Dealer Accounts</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#073e6e" />
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icons/icon-192.png" />
+<link rel="stylesheet" href="css/style.css" />
+<style>
+  .rank-you { background: #e9f8ef; font-weight: 700; }
+  .medal { font-size: 18px; margin-right: 6px; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div>
+    <h1>SR Bharat Gas, Kammapuram</h1>
+    <div class="sub">My Dashboard</div>
+  </div>
+  <div class="who">
+    <span id="whoName"></span>
+    <button class="btn ghost" id="signOutBtn">Sign Out</button>
+  </div>
+</header>
+
+<nav class="dash-nav">
+  <a href="delivery.html">Trip Sheet</a>
+  <a href="driversheet.html">Daily Sheet</a>
+  <a href="driverdash.html" class="on" aria-current="page">My Dashboard</a>
+</nav>
+
+<div class="ticker-wrap" aria-label="important delivery rules">
+  <div class="ticker">
+    <b>OTP இல்லாமல் டெலிவரி கிடையாது</b><span class="sep">•</span>
+    <b>eKYC செய்யாத வாடிக்கையாளர்களுக்கு டெலிவரி கிடையாது</b><span class="sep">•</span>
+    <b>NO DELIVERY WITHOUT OTP</b><span class="sep">•</span>
+    <b>NO DELIVERY FOR CUSTOMERS WITHOUT eKYC</b><span class="sep">•</span>
+  </div>
+</div>
+
+<main style="max-width:900px;">
+  <div class="card" style="display:none;"><input type="date" id="entryDate" /></div>
+  <div id="msg" class="msg hidden"></div>
+
+  <div class="card">
+    <h2>My Deliveries</h2>
+    <div class="totals">
+      <div class="tile credit"><div class="label">This Month</div><div class="value" id="dThisMonth">0</div></div>
+      <div class="tile"><div class="label">Last Month</div><div class="value" id="dLastMonth">0</div></div>
+      <div class="tile"><div class="label">Daily Average (this month)</div><div class="value" id="dAverage">0</div></div>
+      <div class="tile"><div class="label">19 Kg Commercial (this month)</div><div class="value" id="dCommercial">0</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>My Compliance — This Month</h2>
+    <div class="totals">
+      <div class="tile credit"><div class="label">Deliveries with OTP</div><div class="value" id="dOtp">0</div></div>
+      <div class="tile credit"><div class="label">Biometric / eKYC done</div><div class="value" id="dEkyc">0</div></div>
+      <div class="tile debit"><div class="label">Entries WITHOUT OTP</div><div class="value" id="dNoOtp">0</div></div>
+    </div>
+    <p style="font-size:12px;color:var(--muted);">Counted from your trip-sheet entries this month.</p>
+  </div>
+
+  <div class="card">
+    <h2>Team Leaderboard — This Month</h2>
+    <div class="totals" style="margin-bottom:12px;">
+      <div class="tile credit"><div class="label">🏆 Top Driver</div><div class="value" id="dTop">—</div></div>
+      <div class="tile debit"><div class="label">Needs Push</div><div class="value" id="dLeast">—</div></div>
+      <div class="tile"><div class="label">My Rank</div><div class="value" id="dRank">—</div></div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Rank</th><th>Driver</th><th>Cylinders Delivered</th></tr></thead>
+        <tbody id="leaderBody"></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<footer class="note">Internal use only — SR Bharat Gas, Kammapuram</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/cloud.js"></script>
+<script src="js/common.js"></script>
+<script src="js/sheetmath.js"></script>
+<script src="js/driverdash.js"></script>
+<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");</script>
+</body>
+</html>

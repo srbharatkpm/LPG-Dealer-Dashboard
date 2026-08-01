@@ -848,6 +848,33 @@ create policy office_sales_all on office_sales for all
   with check (is_office_role());
 
 -- =========================================================
+-- 6f3. driver_leaderboard(p_start, p_end) — delivered-cylinder totals
+--      per driver for the period. SECURITY DEFINER on purpose: RLS
+--      lets a driver read only his own sheets, but the motivation
+--      board on his dashboard needs everyone's TOTALS. This function
+--      exposes exactly (driver, delivered count) and nothing else —
+--      no cash, no sales values, no sheet contents.
+-- =========================================================
+create or replace function driver_leaderboard(p_start date, p_end date)
+returns table (driver_id uuid, driver_name text, delivered numeric)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select
+    ds.driver_id,
+    coalesce(max(ds.driver_name), '') as driver_name,
+    coalesce(sum(coalesce((prod.value ->> 'delivered')::numeric, 0)), 0) as delivered
+  from driver_sheets ds
+  left join lateral jsonb_each(coalesce(ds.data -> 'stock', '{}'::jsonb)) prod on true
+  where ds.sheet_date between p_start and p_end
+  group by ds.driver_id
+$$;
+
+grant execute on function driver_leaderboard(date, date) to authenticated;
+
+-- =========================================================
 -- 6g. register_checklist — the statutory/operational registers the
 --     manager & office staff must maintain and tick off DAILY before
 --     day end (Stock, DPR, Defective DPR, SV/TV, Complaint, PDI, SQC).
