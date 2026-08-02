@@ -584,7 +584,7 @@ document.getElementById("printBtn").addEventListener("click", () => window.print
 
 initDashboard({
   current: "daysheet.html",
-  roles: ["owner", "manager", "accounts"],
+  roles: ["owner", "manager", "accounts", "staff"],
   load: async (profile) => {
     dsProfile = profile;
     await loadSheet();

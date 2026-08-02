@@ -502,7 +502,7 @@ document.getElementById("entryDate").addEventListener("change", () => {
 
 (async () => {
   try {
-    profile = await lpgCloud.requireRole(["owner", "manager", "accounts"]);
+    profile = await lpgCloud.requireRole(["owner", "manager", "accounts", "staff"]);
     if (!profile) return;
     document.getElementById("whoName").textContent = profile.full_name + " (" + roleLabel(profile.role) + ")";
     applyRoleVisibility(profile.role);

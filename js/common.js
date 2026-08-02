@@ -47,15 +47,15 @@ function delta(value, goodWhenUp) {
 const NAV_ITEMS = [
   { href: "dashboard.html", label: "Dashboard", roles: ["owner", "manager", "accounts"] },
   { href: "stock.html", label: "Stock", roles: ["owner", "manager", "accounts", "staff"] },
-  { href: "finance.html", label: "Accounts", roles: ["owner", "manager", "accounts"] },
+  { href: "finance.html", label: "Accounts", roles: ["owner", "manager", "accounts", "staff"] },
   { href: "operations.html", label: "Operations", roles: ["owner", "manager", "accounts"] },
   { href: "followups.html", label: "Follow-ups", roles: ["owner", "manager", "accounts"] },
   { href: "settings.html", label: "Settings", roles: ["owner", "manager"] },
 ];
 
 const ENTRY_ITEMS = [
-  { href: "accounts.html", label: "Ledger Entry", roles: ["owner", "manager", "accounts"] },
-  { href: "daysheet.html", label: "Day Sheet", roles: ["owner", "manager", "accounts"] },
+  { href: "accounts.html", label: "Ledger Entry", roles: ["owner", "manager", "accounts", "staff"] },
+  { href: "daysheet.html", label: "Day Sheet", roles: ["owner", "manager", "accounts", "staff"] },
   { href: "godown.html", label: "Godown Entry", roles: ["staff"] },
   { href: "driverdash.html", label: "My Dashboard", roles: ["driver"] },
   { href: "delivery.html", label: "Trip Sheet", roles: ["driver"] },

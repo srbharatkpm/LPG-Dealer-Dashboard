@@ -166,6 +166,6 @@ async function loadFinanceDash() {
 
 initDashboard({
   current: "finance.html",
-  roles: ["owner", "manager", "accounts"],
+  roles: ["owner", "manager", "accounts", "staff"],
   load: loadFinanceDash,
 });

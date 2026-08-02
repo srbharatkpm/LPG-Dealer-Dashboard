@@ -180,7 +180,7 @@ alter table delivery_trips enable row level security;
 
 drop policy if exists delivery_trips_select on delivery_trips;
 create policy delivery_trips_select on delivery_trips for select
-  using (driver_id = auth.uid() or is_office_role() or is_ops_role());
+  using (driver_id = auth.uid() or is_office_role() or is_ops_role() or current_role_name() = 'staff');
 
 drop policy if exists delivery_trips_insert on delivery_trips;
 create policy delivery_trips_insert on delivery_trips for insert
@@ -215,7 +215,7 @@ alter table delivery_entries enable row level security;
 drop policy if exists delivery_entries_select on delivery_entries;
 create policy delivery_entries_select on delivery_entries for select
   using (
-    is_office_role() or is_ops_role()
+    is_office_role() or is_ops_role() or current_role_name() = 'staff'
     or exists (select 1 from delivery_trips t where t.id = trip_id and t.driver_id = auth.uid())
   );
 
@@ -345,8 +345,8 @@ create policy product_rates_select on product_rates for select
 
 drop policy if exists product_rates_write on product_rates;
 create policy product_rates_write on product_rates for all
-  using (is_office_role())
-  with check (is_office_role());
+  using (is_office_role() or current_role_name() = 'staff')
+  with check (is_office_role() or current_role_name() = 'staff');
 
 -- =========================================================
 -- 3c. sales_targets — Owner/Manager set a ₹ sales target per period
@@ -406,13 +406,13 @@ alter table credit_transactions enable row level security;
 
 drop policy if exists credit_customers_all on credit_customers;
 create policy credit_customers_all on credit_customers for all
-  using (is_office_role())
-  with check (is_office_role());
+  using (is_office_role() or current_role_name() = 'staff')
+  with check (is_office_role() or current_role_name() = 'staff');
 
 drop policy if exists credit_transactions_all on credit_transactions;
 create policy credit_transactions_all on credit_transactions for all
-  using (is_office_role())
-  with check (is_office_role());
+  using (is_office_role() or current_role_name() = 'staff')
+  with check (is_office_role() or current_role_name() = 'staff');
 
 -- =========================================================
 -- 4. accounts_daily — office-only manual figures (bank deposit,
@@ -439,8 +439,8 @@ alter table accounts_daily enable row level security;
 
 drop policy if exists accounts_daily_all on accounts_daily;
 create policy accounts_daily_all on accounts_daily for all
-  using (is_office_role())
-  with check (is_office_role());
+  using (is_office_role() or current_role_name() = 'staff')
+  with check (is_office_role() or current_role_name() = 'staff');
 
 -- =========================================================
 -- 5. customers — master contact list (imported from file, or grown
@@ -776,8 +776,8 @@ alter table day_sheets enable row level security;
 
 drop policy if exists day_sheets_all on day_sheets;
 create policy day_sheets_all on day_sheets for all
-  using (is_office_role())
-  with check (is_office_role());
+  using (is_office_role() or current_role_name() = 'staff')
+  with check (is_office_role() or current_role_name() = 'staff');
 
 -- =========================================================
 -- 6f. driver_sheets — each delivery boy's daily settlement sheet, the
@@ -817,7 +817,7 @@ alter table driver_sheets enable row level security;
 
 drop policy if exists driver_sheets_select on driver_sheets;
 create policy driver_sheets_select on driver_sheets for select
-  using (driver_id = auth.uid() or is_office_role());
+  using (driver_id = auth.uid() or is_office_role() or current_role_name() = 'staff');
 
 drop policy if exists driver_sheets_insert on driver_sheets;
 create policy driver_sheets_insert on driver_sheets for insert
@@ -851,8 +851,8 @@ alter table office_sales enable row level security;
 
 drop policy if exists office_sales_all on office_sales;
 create policy office_sales_all on office_sales for all
-  using (is_office_role())
-  with check (is_office_role());
+  using (is_office_role() or current_role_name() = 'staff')
+  with check (is_office_role() or current_role_name() = 'staff');
 
 -- =========================================================
 -- 6f3. driver_leaderboard(p_start, p_end) — delivered-cylinder totals
