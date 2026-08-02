@@ -4,6 +4,7 @@ const STOCK_CONFIG = [
   { product: "14.2 Kg Domestic", conditions: ["full", "empty"] },
   { product: "19 Kg Commercial", conditions: ["full", "empty"] },
   { product: "5 Kg BMCG", conditions: ["full", "empty"] },
+  { product: "5 Kg FTL", conditions: ["full", "empty"] },
   { product: "DPR (Regulator)", conditions: ["sound", "defective"] },
   { product: "Hose", conditions: ["qty"] },
   { product: "Lighter", conditions: ["qty"] },

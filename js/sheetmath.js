@@ -4,12 +4,12 @@
 
 const DS_STOCK_PRODUCTS = [
   "14.2 Kg Cylinder", "19 Kg Cylinder", "BMCG Cylinder", "5 Kg Cylinder",
-  "DPR", "Hose", "Lighter", "Book", "Stove",
+  "FTL Cylinder", "DPR", "Hose", "Lighter", "Book", "Stove",
 ];
 const DS_STOCK_COLS = ["upload", "sv_load", "sv_empty", "ret_load", "ret_empty", "delivered"];
 
 // Total Sale items in the paper's own order
-const DS_SALE_ITEMS = ["14.2 Kg", "19 Kg", "BMCG", "Stove", "Hose", "Lighter", "DPR", "NC", "Add", "Book"];
+const DS_SALE_ITEMS = ["14.2 Kg", "19 Kg", "BMCG", "FTL", "Stove", "Hose", "Lighter", "DPR", "NC", "Add", "Book"];
 
 const DS_DEBITS = [
   ["diesel", "Diesel Expenses"],
@@ -70,6 +70,7 @@ const DS_TO_GODOWN = [
   ["19 Kg Cylinder", "19 Kg Commercial", "cyl"],
   ["BMCG Cylinder", "5 Kg BMCG", "cyl"],
   ["5 Kg Cylinder", "5 Kg BMCG", "cyl"],
+  ["FTL Cylinder", "5 Kg FTL", "cyl"],
   ["DPR", "DPR (Regulator)", "dpr"],
   ["Hose", "Hose", "acc"],
   ["Lighter", "Lighter", "acc"],
@@ -97,6 +98,23 @@ function dsStockDelta(data, sign) {
     }
   });
   return deltas;
+}
+
+// Normalise the various product spellings used across the app (driver
+// sheet items, godown names, office sales, plant purchases) into the
+// buckets the overall dashboard reports on.
+function dsProductBucket(name) {
+  const s = String(name || "").toLowerCase();
+  if (s.indexOf("14.2") !== -1) return "14.2 Kg";
+  if (s.indexOf("19") !== -1) return "19 Kg";
+  if (s.indexOf("ftl") !== -1) return "FTL";
+  if (s.indexOf("bmcg") !== -1 || s.indexOf("5 kg") !== -1) return "5 Kg BMCG";
+  if (s.indexOf("dpr") !== -1) return "DPR";
+  if (s.indexOf("hose") !== -1) return "Hose";
+  if (s.indexOf("book") !== -1) return "Book";
+  if (s.indexOf("lighter") !== -1) return "Lighter";
+  if (s.indexOf("stove") !== -1) return "Stove";
+  return "Other";
 }
 
 // Per-item {qty, amount} for one sheet — used by the Day Sheet to fold

@@ -297,12 +297,107 @@ async function loadRegisterChecklist() {
   }
 }
 
+// ---------- Overall (from–to) sales & purchases ----------
+// Sales come from every driver sheet's sale items plus office counter
+// sales; purchases from plant runs. All product spellings collapse
+// into buckets via dsProductBucket().
+const OV_BUCKETS = ["14.2 Kg", "19 Kg", "5 Kg BMCG", "FTL", "DPR", "Hose", "Book", "Lighter", "Stove", "Other"];
+
+async function loadOverall() {
+  const from = document.getElementById("ovFrom").value || "2000-01-01";
+  const to = document.getElementById("ovTo").value || todayStr();
+
+  const [sheets, officeSales, purchases] = await Promise.all([
+    lpgCloud.selectAll("driver_sheets", { columns: "sheet_date, data" }).then(
+      (rows) => rows.filter((r) => r.sheet_date >= from && r.sheet_date <= to)
+    ),
+    lpgCloud.selectAll("office_sales").then(
+      (rows) => rows.filter((r) => r.entry_date >= from && r.entry_date <= to)
+    ),
+    lpgCloud.selectAll("plant_purchases").then(
+      (rows) => rows.filter((r) => r.purchase_date >= from && r.purchase_date <= to)
+    ),
+  ]);
+
+  const agg = {};
+  OV_BUCKETS.forEach((b) => (agg[b] = { soldQty: 0, soldVal: 0, purQty: 0, purVal: 0 }));
+  const bucketOf = (name) => agg[dsProductBucket(name)] || agg.Other;
+
+  sheets.forEach((s) => {
+    const parts = dsSaleBreakdown(s.data || {});
+    Object.entries(parts).forEach(([item, p]) => {
+      const b = bucketOf(item);
+      b.soldQty += p.qty;
+      b.soldVal += p.amount;
+    });
+  });
+  officeSales.forEach((r) => {
+    const b = bucketOf(r.product);
+    b.soldQty += num(r.qty);
+    b.soldVal += num(r.qty) * num(r.rate);
+  });
+  purchases.forEach((r) => {
+    const b = bucketOf(r.product);
+    b.purQty += num(r.qty_received);
+    b.purVal += num(r.amount);
+  });
+
+  let sQty = 0, sVal = 0, pQty = 0, pVal = 0;
+  document.getElementById("ovBreakdownBody").innerHTML = OV_BUCKETS
+    .filter((bkt) => {
+      const b = agg[bkt];
+      return b.soldQty || b.soldVal || b.purQty || b.purVal;
+    })
+    .map((bkt) => {
+      const b = agg[bkt];
+      sQty += b.soldQty; sVal += b.soldVal; pQty += b.purQty; pVal += b.purVal;
+      return (
+        "<tr><td>" + bkt + "</td><td>" + qty(b.soldQty) + "</td><td>" + fmt(b.soldVal) +
+        "</td><td>" + qty(b.purQty) + "</td><td>" + fmt(b.purVal) + "</td></tr>"
+      );
+    })
+    .join("") || '<tr><td colspan="5" style="color:var(--muted);">No records in this period.</td></tr>';
+
+  document.getElementById("ovSalesValue").textContent = fmt(sVal);
+  document.getElementById("ovSalesQty").textContent = qty(sQty);
+  document.getElementById("ovPurchValue").textContent = fmt(pVal);
+  document.getElementById("ovPurchQty").textContent = qty(pQty);
+}
+
+["ovFrom", "ovTo"].forEach((id) =>
+  document.getElementById(id).addEventListener("change", () =>
+    loadOverall().catch((e) => showDashMsg(e.message))
+  )
+);
+function showDashMsg(text) {
+  const msg = document.getElementById("msg");
+  msg.className = "msg error";
+  msg.textContent = text;
+}
+document.getElementById("ovPresetAll").addEventListener("click", () => {
+  document.getElementById("ovFrom").value = "";
+  document.getElementById("ovTo").value = todayStr();
+  loadOverall().catch((e) => showDashMsg(e.message));
+});
+document.getElementById("ovPresetMonth").addEventListener("click", () => {
+  document.getElementById("ovFrom").value = monthStart(todayStr());
+  document.getElementById("ovTo").value = todayStr();
+  loadOverall().catch((e) => showDashMsg(e.message));
+});
+document.getElementById("ovPresetToday").addEventListener("click", () => {
+  document.getElementById("ovFrom").value = todayStr();
+  document.getElementById("ovTo").value = todayStr();
+  loadOverall().catch((e) => showDashMsg(e.message));
+});
+
 initDashboard({
   current: "dashboard.html",
   roles: ["owner", "manager", "accounts"],
   load: async (profile) => {
     dashProfile = profile;
+    document.getElementById("ovTo").value = todayStr();
     await loadDashboard();
     await loadRegisterChecklist();
+    await loadOverall();
   },
 });
