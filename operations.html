@@ -211,10 +211,14 @@
 
   <!-- ── Plant Purchases ── -->
   <div class="card tab-panel" id="panel-purchases" style="display:none;">
-    <h2>Record Uplift from Plant</h2>
+    <h2>Morning — Vehicle Sent to Bottling Plant</h2>
+    <p style="font-size:13px;color:var(--muted);margin-top:-6px;">
+      Add this when the lorry leaves with empties. The empties go out of stock immediately.
+      When it returns, use <strong>Mark Received</strong> on the row to enter fulls and invoice.
+    </p>
     <form id="purchaseForm">
       <div class="grid">
-        <div><label>Invoice No.</label><input type="text" id="ppInvoice" /></div>
+        <div><label>Vehicle</label><input type="text" id="ppVehicle" required placeholder="TN-91-AW-7452" /></div>
         <div>
           <label>Product</label>
           <select id="ppProduct">
@@ -223,17 +227,15 @@
             <option value="5 Kg BMCG">5 Kg BMCG</option>
           </select>
         </div>
-        <div><label>Full Received</label><input type="number" id="ppReceived" step="1" value="0" /></div>
         <div><label>Empties Sent</label><input type="number" id="ppEmpties" step="1" value="0" /></div>
-        <div><label>Invoice Amount (₹)</label><input type="number" id="ppAmount" step="0.01" value="0" /></div>
-        <div><label>Vehicle</label><input type="text" id="ppVehicle" placeholder="TN-91-AW-7452" /></div>
+        <div><label>Sent Time</label><input type="time" id="ppSentTime" /></div>
       </div>
-      <div class="row-actions"><button type="submit" class="btn">Record Purchase</button></div>
+      <div class="row-actions"><button type="submit" class="btn">Vehicle Sent</button></div>
     </form>
-    <h2 style="margin-top:18px;">Purchases This Month</h2>
+    <h2 style="margin-top:18px;">Plant Runs This Month</h2>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Date</th><th>Invoice</th><th>Product</th><th>Received</th><th>Empties Sent</th><th>Amount</th><th>Vehicle</th><th></th></tr></thead>
+        <thead><tr><th>Date</th><th>Vehicle</th><th>Product</th><th>Empties Sent</th><th>Time</th><th>Received</th><th>Invoice</th><th>Amount</th><th>Status</th><th></th></tr></thead>
         <tbody id="purchasesBody"></tbody>
       </table>
     </div>

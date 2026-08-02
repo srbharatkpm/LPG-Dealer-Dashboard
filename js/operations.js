@@ -396,14 +396,16 @@ document.getElementById("targetsSaveBtn").addEventListener("click", async () => 
   }
 });
 
-// ---------- Plant purchases ----------
-// A recorded uplift moves godown stock automatically: fulls received
-// increase FULL, empties sent to the plant decrease EMPTY. Deleting the
-// purchase reverses it. sign +1 applies, -1 reverses.
-async function applyPurchaseDelta(row, sign) {
+// ---------- Plant runs (two-stage) ----------
+// Morning: vehicle SENT with empties -> stock's empties go out at once.
+// Return: Mark Received with fulls + invoice -> fulls come into stock.
+// Deltas are applied per part so each stage (and its undo) is exact.
+async function applyPurchaseDelta(row, sign, part) {
   const deltas = [];
-  if (num(row.qty_received)) deltas.push({ condition: "full", d: sign * num(row.qty_received) });
-  if (num(row.empties_sent)) deltas.push({ condition: "empty", d: -sign * num(row.empties_sent) });
+  if ((part === "fulls" || part === "both") && num(row.qty_received))
+    deltas.push({ condition: "full", d: sign * num(row.qty_received) });
+  if ((part === "empties" || part === "both") && num(row.empties_sent))
+    deltas.push({ condition: "empty", d: -sign * num(row.empties_sent) });
   if (!deltas.length) return;
   const existing = await lpgCloud.select("godown_stock", { eq: { entry_date: row.purchase_date } });
   const byKey = {};
@@ -436,25 +438,63 @@ async function loadPurchases() {
   rows.forEach((r) => {
     totalIn += num(r.qty_received);
     totalValue += num(r.amount);
+    const sent = (r.status || "received") === "sent";
     const tr = document.createElement("tr");
     tr.innerHTML =
       "<td>" + r.purchase_date + "</td>" +
-      "<td>" + escapeHtml(r.invoice_no) + "</td>" +
-      "<td>" + escapeHtml(r.product) + "</td>" +
-      "<td>" + qty(r.qty_received) + "</td>" +
-      "<td>" + qty(r.empties_sent) + "</td>" +
-      "<td>" + fmt(r.amount) + "</td>" +
       "<td>" + escapeHtml(r.vehicle_number) + "</td>" +
-      '<td><button class="btn small danger" data-del="' + r.id + '">Delete</button></td>';
+      "<td>" + escapeHtml(r.product) + "</td>" +
+      "<td>" + qty(r.empties_sent) + "</td>" +
+      "<td>" + escapeHtml(r.sent_time || "—") + "</td>" +
+      (sent
+        ? '<td><input type="number" step="1" style="width:60px;" data-rc-qty="' + r.id + '" placeholder="fulls" /></td>' +
+          '<td><input type="text" style="width:90px;" data-rc-inv="' + r.id + '" placeholder="invoice" /></td>' +
+          '<td><input type="number" step="0.01" style="width:90px;" data-rc-amt="' + r.id + '" placeholder="₹" /></td>' +
+          '<td><span class="pill amber">at plant</span></td>' +
+          '<td style="white-space:nowrap;"><button class="btn small" data-recv="' + r.id + '">Mark Received</button> ' +
+          '<button class="btn small danger" data-del="' + r.id + '">Delete</button></td>'
+        : "<td>" + qty(r.qty_received) + "</td>" +
+          "<td>" + escapeHtml(r.invoice_no) + "</td>" +
+          "<td>" + fmt(r.amount) + "</td>" +
+          '<td><span class="pill green">received</span></td>' +
+          '<td><button class="btn small danger" data-del="' + r.id + '">Delete</button></td>');
     body.appendChild(tr);
   });
   document.getElementById("ppTotalIn").textContent = qty(totalIn);
   document.getElementById("ppTotalValue").textContent = fmt(totalValue);
+
+  body.querySelectorAll("[data-recv]").forEach((btn) =>
+    btn.addEventListener("click", async () => {
+      const row = purchaseById[btn.dataset.recv];
+      const qtyIn = num(body.querySelector('[data-rc-qty="' + row.id + '"]').value);
+      if (!qtyIn) {
+        showOpMsg("Enter how many full cylinders came back before marking received.", "error");
+        return;
+      }
+      try {
+        await lpgCloud.update("plant_purchases", row.id, {
+          qty_received: qtyIn,
+          invoice_no: body.querySelector('[data-rc-inv="' + row.id + '"]').value.trim(),
+          amount: num(body.querySelector('[data-rc-amt="' + row.id + '"]').value),
+          status: "received",
+        });
+        await applyPurchaseDelta({ ...row, qty_received: qtyIn }, +1, "fulls");
+        await loadPurchases();
+        showOpMsg("Load received — full cylinders added to stock.", "ok");
+      } catch (err) {
+        showOpMsg(err.message || "Could not mark received.", "error");
+      }
+    })
+  );
   body.querySelectorAll("[data-del]").forEach((btn) =>
     btn.addEventListener("click", async () => {
       const row = purchaseById[btn.dataset.del];
+      if (!confirm("Delete this plant run? Stock movement will be reversed.")) return;
       await lpgCloud.remove("plant_purchases", btn.dataset.del);
-      if (row) await applyPurchaseDelta(row, -1); // put the stock back
+      if (row) {
+        const part = (row.status || "received") === "sent" ? "empties" : "both";
+        await applyPurchaseDelta(row, -1, part);
+      }
       await loadPurchases();
     })
   );
@@ -466,22 +506,22 @@ document.getElementById("purchaseForm").addEventListener("submit", async (e) => 
     const inserted = await lpgCloud.insert("plant_purchases", [
       {
         purchase_date: currentDate(),
-        invoice_no: document.getElementById("ppInvoice").value.trim(),
         product: document.getElementById("ppProduct").value,
-        qty_received: num(document.getElementById("ppReceived").value),
+        qty_received: 0,
         empties_sent: num(document.getElementById("ppEmpties").value),
-        amount: num(document.getElementById("ppAmount").value),
+        amount: 0,
         vehicle_number: document.getElementById("ppVehicle").value.trim().toUpperCase(),
+        sent_time: document.getElementById("ppSentTime").value || null,
+        status: "sent",
         created_by: opProfile.id,
       },
     ]);
-    // uplift moves stock automatically: fulls in, empties out
-    if (inserted && inserted[0]) await applyPurchaseDelta(inserted[0], +1);
+    if (inserted && inserted[0]) await applyPurchaseDelta(inserted[0], +1, "empties");
     document.getElementById("purchaseForm").reset();
     await loadPurchases();
-    showOpMsg("Purchase recorded — godown stock updated.", "ok");
+    showOpMsg("Vehicle sent recorded — empties moved out of stock.", "ok");
   } catch (err) {
-    showOpMsg(err.message || "Could not record the purchase.", "error");
+    showOpMsg(err.message || "Could not record the vehicle sent.", "error");
   }
 });
 
@@ -558,7 +598,7 @@ async function loadAllOps() {
 
 initDashboard({
   current: "operations.html",
-  roles: ["owner", "manager"],
+  roles: ["owner", "manager", "accounts"],
   load: async (profile) => {
     opProfile = profile;
     if (!team.length) {

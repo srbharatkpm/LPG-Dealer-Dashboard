@@ -723,6 +723,13 @@ create table if not exists plant_purchases (
   created_at     timestamptz not null default now()
 );
 
+-- Two-stage plant run: the vehicle is SENT in the morning with empties
+-- (status 'sent', stock's empties go out immediately), and marked
+-- RECEIVED when it returns with fulls + the invoice.
+alter table plant_purchases add column if not exists status text not null default 'received'
+  check (status in ('sent', 'received'));
+alter table plant_purchases add column if not exists sent_time text;
+
 alter table bookings enable row level security;
 alter table plant_purchases enable row level security;
 

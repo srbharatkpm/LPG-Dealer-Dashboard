@@ -48,7 +48,7 @@ const NAV_ITEMS = [
   { href: "dashboard.html", label: "Dashboard", roles: ["owner", "manager", "accounts"] },
   { href: "stock.html", label: "Stock", roles: ["owner", "manager", "accounts", "staff"] },
   { href: "finance.html", label: "Accounts", roles: ["owner", "manager", "accounts"] },
-  { href: "operations.html", label: "Operations", roles: ["owner", "manager"] },
+  { href: "operations.html", label: "Operations", roles: ["owner", "manager", "accounts"] },
   { href: "followups.html", label: "Follow-ups", roles: ["owner", "manager", "accounts"] },
   { href: "settings.html", label: "Settings", roles: ["owner", "manager"] },
 ];
